@@ -1,0 +1,13 @@
+file = _{ SOI ~ definition+ ~ EOI }
+
+definition = { struct_name ~ "{" ~ WHITESPACE* ~ struct_item+ ~ WHITESPACE* ~ "}" }
+struct_name = ${ "struct" ~ WHITESPACE+ ~ identifier ~ WHITESPACE+ }
+
+identifier = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+array = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | identifier }
+array_brackets = ${ "[" ~ array? ~ "]" }
+
+type_decl = ${ array_brackets? ~ identifier }
+struct_item = ${ identifier ~ WHITESPACE+ ~ type_decl }
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }

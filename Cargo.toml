@@ -1,0 +1,12 @@
+[package]
+name = "pstruct"
+version = "0.1.0"
+authors = ["wwared"]
+edition = "2018"
+
+[dependencies]
+pest = "2.0"
+pest_derive = "2.0"
+[dependencies.tera]
+version = "1.0"
+default-features = false

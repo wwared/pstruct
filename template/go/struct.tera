@@ -1,0 +1,12 @@
+package {{ package_name | lower }}
+
+import ps "pstruct-runtime/stream"
+
+{% for struct in struct_definitions -%}
+{%- set type = struct | capitalize -%}
+
+func New{{type}}() {{type}} {
+    return {{type}}{}
+}
+
+{% endfor -%}
