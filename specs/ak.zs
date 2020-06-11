@@ -6,20 +6,20 @@ struct Login {
 
 struct ChannelList {
     Count    u16
-    Channels []Channel Count
+    Channels [Count]Channel
 }
 
 struct Channel {
     Idx  u16
     Name string
-    unk  []byte 18
+    unk  [18]byte
 }
 
 struct ChannelConnect {
-    Key1 []byte 8
-    Addr []byte 4
+    Key1 [8]byte
+    Addr [4]byte
     Port u16
-    Key2 []byte 8
+    Key2 [8]byte
 }
 
 struct SelectChannel {
