@@ -1,0 +1,30 @@
+#+TITLE: pstruct todos
+
+* Make arrays work
+** Constant length
+** Non-constant length support in arrays
+** Store length in variable
+
+* Move template code to its own module
+
+* Make template code a bit more language-extendable
+** If it looks too annoying to make it without having another language to write for, just ignore for now
+
+* Make this write to files
+
+* Run go fmt after creating file
+
+* Add cli interface with clap
+
+* Error message when defining reserved struct items
+** Need to figure out what those are first
+
+* Upper bound on unknown array sizes
+
+* Support endianness configuration
+** Maybe as a per-item basis with "tags"?
+
+* Template tests? Can I do that in a non-shit way?
+** At least tests for the filters/functions
+
+* Some kind of full test where it runs through go test
