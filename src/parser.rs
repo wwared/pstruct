@@ -45,7 +45,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
     // println!("Item name {:?}", name);
     let type_pair = inner_rules.next().unwrap();
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
-    let array_size: Option<ArraySize>;
+    let array_size: ArraySize;
     let item_type: Type;
     let mut type_inner = type_pair.into_inner();
     let first_elem = type_inner.next().unwrap();
@@ -53,18 +53,18 @@ fn parse_item(pair: Pair<Rule>) -> Item {
         Rule::array_brackets => {
             if let Some(array) = first_elem.into_inner().next() {
                 let arr_str = array.as_str();
-                array_size = Some(match arr_str.parse::<usize>() {
+                array_size = match arr_str.parse::<usize>() {
                     Ok(size) => ArraySize::Constant(size),
                     Err(_) => ArraySize::Variable(arr_str.to_string()),
-                });
+                };
             } else {
-                array_size = Some(ArraySize::Unknown);
+                array_size = ArraySize::Unknown;
             }
             // println!("Array Size {:?}", array_size);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
         Rule::identifier => {
-            array_size = None;
+            array_size = ArraySize::NotArray;
             item_type = parse_item_type(first_elem.as_str());
         },
         _ => unreachable!("expected array or identifier")
@@ -105,17 +105,15 @@ pub fn parse_file(file_contents: &str) -> Result<Vec<Definition>, Error> {
                 _ => (),
             }
             // check for undefined variables
-            if let Some(array_size) = &item.array_size {
-                match array_size {
-                    ArraySize::Variable(var) => {
-                        if !defined_vars.contains(var) {
-                            let message = format!("{}: Undefined variable '{}'", def.name, var);
-                            let error_span = pest::Span::new(var, 0, var.len()).unwrap();
-                            return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
-                        }
-                    },
-                    _ => (),
-                }
+            match &item.array_size {
+                ArraySize::Variable(var) => {
+                    if !defined_vars.contains(var) {
+                        let message = format!("{}: Undefined variable '{}'", def.name, var);
+                        let error_span = pest::Span::new(var, 0, var.len()).unwrap();
+                        return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
+                    }
+                },
+                _ => (),
             }
         }
     }
