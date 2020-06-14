@@ -4,7 +4,7 @@ use fomat_macros::{fomat, wite};
 
 use std::fmt;
 
-impl fmt::Display for Type {
+impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         wite!(
             f,
@@ -25,7 +25,7 @@ impl fmt::Display for Type {
     }
 }
 
-impl fmt::Display for ArraySize {
+impl fmt::Display for ArraySize<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         wite!(
             f,
@@ -97,7 +97,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
     }
 }
 
-impl fmt::Display for Definition {
+impl fmt::Display for Definition<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let var_name = self .name .get(0..1) .map(|x| x.to_lowercase()) .ok_or(fmt::Error)?;
         let item_type = &self.name;

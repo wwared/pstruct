@@ -25,7 +25,7 @@ fn parse_definition(pair: Pair<Rule>) -> Definition {
     for item_pair in inner_rules {
         items.push(parse_item(item_pair));
     }
-    Definition {name: name.to_string(), items}
+    Definition {name, items}
 }
 
 fn parse_item_type(type_name: &str) -> Type {
@@ -33,7 +33,7 @@ fn parse_item_type(type_name: &str) -> Type {
         "u8" => Type::U8, "u16" => Type::U16, "u32" => Type::U32, "u64" => Type::U64,
         "i8" => Type::I8, "i16" => Type::I16, "i32" => Type::I32, "i64" => Type::I64,
         "byte" => Type::Byte, "string" => Type::String,
-        _ => Type::User(type_name.to_string())
+        _ => Type::User(type_name)
     }
 }
 
@@ -55,7 +55,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
                 let arr_str = array.as_str();
                 array_size = match arr_str.parse::<usize>() {
                     Ok(size) => ArraySize::Constant(size),
-                    Err(_) => ArraySize::Variable(arr_str.to_string()),
+                    Err(_) => ArraySize::Variable(arr_str),
                 };
             } else {
                 array_size = ArraySize::Unknown;
@@ -69,7 +69,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
         },
         _ => unreachable!("expected array or identifier")
     };
-    Item { name: name.to_string(), item_type, array_size }
+    Item { name, item_type, array_size }
 }
 
 
@@ -117,8 +117,8 @@ pub fn parse_file(file_contents: &str) -> Result<Vec<Definition>, Error> {
             }
         }
     }
-    let names = defined_structs.iter().map(|s| s.clone()).collect::<Vec<String>>().join(", ");
-    // println!("Got a total of {} definitions: {}", defined_structs.len(), names);
+    let names = defined_structs.iter().map(|s| s.clone()).collect::<Vec<&str>>().join(", ");
+    eprintln!("Got a total of {} definitions: {}", defined_structs.len(), names);
 
     Ok(definitions)
 }
