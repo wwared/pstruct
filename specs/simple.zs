@@ -18,6 +18,6 @@ struct Test {
   StrArr [3]string
   UnsizedArr []u8
   Child Inner
-  VarArr [U64]byte
+  VarArr [Byte]byte
   End u64
 }
