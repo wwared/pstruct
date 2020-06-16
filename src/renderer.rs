@@ -201,7 +201,7 @@ impl fmt::Display for Definition<'_> {
 pub fn render_file(package_name: &str, file_definitions: &Vec<Definition>) -> String {
     fomat!(
         "package " (package_name.to_lowercase()) "\n\n"
-        r#"import ps "github.com/wwared/pstruct""# "\n\n"
+        r#"import ps "github.com/wwared/pstruct/runtime""# "\n\n"
         for definition in file_definitions {
             (definition)
         }
