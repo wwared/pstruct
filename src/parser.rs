@@ -320,13 +320,38 @@ player {
     assert!(res.is_err(), "no line ending in struct name");
 
     let test = "
-struct player
+struct   player
 {
     hp []u8
     sp []u16
 }";
     let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_ok(), "line ending after name is ok");
+    assert!(res.is_ok(), "line ending after name is ok, also spaces between struct and name");
     let res = parse_file(test);
-    assert!(res.is_ok(), "line ending after name is ok");
+    assert!(res.is_ok(), "line ending after name is ok, also spaces between struct and name");
+
+    let test = "
+/* hey look */ struct player // comments
+{  // work fine
+    hp []u8 /* real cool! */
+/* multi
+line
+*/ sp []u16 // all the way to the end of the line
+/* wow */} // amazing
+";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "comments, wow");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "comments, wow");
+
+    let test = "
+struct /* can't comment everywhere though */ player
+{
+    hp []u8
+    sp []u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "no comments between struct and name");
+    let res = parse_file(test);
+    assert!(res.is_err(), "no comments between struct and name");
 }

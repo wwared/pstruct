@@ -1,7 +1,7 @@
 file = _{ SOI ~ LINE* ~ (definition ~ EOL*)+ ~ EOI }
 
-definition  = { struct_name ~ "{" ~ LINE+ ~ (struct_item ~ LINE)+ ~ LINE* ~ "}" }
-struct_name = ${ "struct" ~ WHITESPACE+ ~ identifier ~ (WHITESPACE | LINE)+ }
+definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)+ ~ LINE* ~ "}" }
+struct_name = ${ "struct" ~ WHITESPACE+ ~ identifier }
 
 identifier     = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 array          = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | identifier }
@@ -11,6 +11,7 @@ flags       = ${ "" }
 type_decl   = ${ array_brackets? ~ identifier }
 struct_item = ${ identifier ~ WHITESPACE+ ~ type_decl ~ (WHITESPACE+ ~ flags)? }
 
-WHITESPACE = _{ " " | "\t" | "\r" }
-EOL        = _{ "\n" }
+WHITESPACE = _{ " " | "\t" }
+EOL        = _{ "\n" | ("\r" ~ "\n"?) }
 LINE       = _{ WHITESPACE* ~ EOL }
+COMMENT    = _{ ("//" ~ (!EOL ~ ANY)*) | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") }
