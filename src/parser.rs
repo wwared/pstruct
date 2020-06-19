@@ -141,69 +141,192 @@ fn parser_tests() {
     // println!("{:?}", res);
     assert!(res.is_ok(), "ak.zs");
 
-    let test = "struct player { hp u8  sp i16 }";
+    let test = "
+struct player {
+    hp u8
+    sp i16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "simplest test");
     let res = parse_file(test);
     assert!(res.is_ok(), "simplest test");
 
-    let test = "struct player { hp [10]u8  sp []i16 }";
+    let test = "
+struct player {
+    hp [10]u8
+    sp []i16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "array test");
     let res = parse_file(test);
     assert!(res.is_ok(), "array test");
 
-    let test = "struct player { hp u8[10]  sp []i16 }";
+    let test = "
+struct player {
+    hp u8[10]
+    sp []i16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_err(), "wrong position of brackets");
     let res = parse_file(test);
     assert!(res.is_err(), "wrong position of brackets");
 
-    let test = "struct player { hp [5]byte  sp []i16[] }";
+    let test = "
+struct player {
+    hp [5]byte
+    sp []i16[]
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_err(), "wrong position of empty brackets");
     let res = parse_file(test);
     assert!(res.is_err(), "wrong position of empty brackets");
 
-    let test = "structplayer{ hp u8 sp i16 }";
+    let test = "
+structplayer{
+    hp u8
+    sp i16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_err(), "no spaces in name");
     let res = parse_file(test);
     assert!(res.is_err(), "no spaces in name");
 
-    let test = "struct player {hp u8sp i16}";
+    let test = "
+struct player {
+    hp u8sp i16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_err(), "no space between items");
     let res = parse_file(test);
     assert!(res.is_err(), "no space between items");
 
-    let test = "struct player {hpu8 spi16}";
+    let test = "
+struct player {
+    hpu8 spi16
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "no space between type and name - becomes single item, valid grammar");
     let res = parse_file(test);
     assert!(res.is_err(), "no space between type and name - becomes single item, invalid type");
 
-    let test = "struct player { hp u8  sp i16 } struct ship {ang [3]u8spd string}";
+    let test = "
+struct player {
+    hp u8
+    sp i16
+}
+struct ship {
+    ang [3]
+    u8spd string
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_err(), "no space between items on second definition");
     let res = parse_file(test);
     assert!(res.is_err(), "no space between items on second definition");
 
-    let test = "struct player { hp []u8  sp [hp]i16 } struct ship {ang [3]u8 spd string}";
+    let test = "
+struct player {
+    hp []u8
+    sp [hp]i16
+}
+struct ship {
+    ang [3]u8
+    spd string
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "variable as array size");
     let res = parse_file(test);
     assert!(res.is_ok(), "variable as array size");
 
-    let test = "struct player { hp []u8  sp [asdf]i16 } struct ship {ang [3]u8 spd string}";
+    let test = "
+struct player {
+    hp []u8
+    sp [asdf]i16
+}
+
+struct ship {
+    ang [3]u8
+    spd string
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "invalid variable as array size");
     let res = parse_file(test);
     assert!(res.is_err(), "invalid variable as array size");
 
-    let test = "struct player { hp []u8  sp []adf } struct ship {ang [3]u8 spd string}";
+    let test = "
+struct player {
+    hp []u8
+    sp []adf
+}
+
+struct ship {
+    ang [3]u8
+    spd string
+}";
     let res = StructParser::parse(Rule::file, test);
     assert!(res.is_ok(), "invalid type");
     let res = parse_file(test);
     assert!(res.is_err(), "invalid type");
+
+    let test = "struct player {  hp []u8   sp []u16  }";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "needs line endings");
+    let res = parse_file(test);
+    assert!(res.is_err(), "needs line endings");
+
+    let test = "struct player {  hp []u8
+sp []u16  }";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "needs line endings on both ends");
+    let res = parse_file(test);
+    assert!(res.is_err(), "needs line endings on both ends");
+
+    let test = "struct player {  hp []u8
+sp []u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "needs line endings at beginning of struct");
+    let res = parse_file(test);
+    assert!(res.is_err(), "needs line endings at beginning of struct");
+
+    let test = "struct player {
+hp []u8
+sp []u16 }";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "needs line endings at end of struct");
+    let res = parse_file(test);
+    assert!(res.is_err(), "needs line endings at end of struct");
+
+
+    let test = "struct player {
+    hp
+ []u8
+    sp
+[]u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "no line endings in middle of items");
+    let res = parse_file(test);
+    assert!(res.is_err(), "no line endings in middle of items");
+
+    let test = "
+struct
+player {
+    hp []u8
+    sp []u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "no line ending in struct name");
+    let res = parse_file(test);
+    assert!(res.is_err(), "no line ending in struct name");
+
+    let test = "
+struct player
+{
+    hp []u8
+    sp []u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "line ending after name is ok");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "line ending after name is ok");
 }
