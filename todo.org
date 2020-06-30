@@ -7,29 +7,35 @@
 ** Get rid of repetition
 
 * Variable sized array must have count before the array
-** Otherwise the encoding makes no sense
+Otherwise the encoding makes no sense
 
 * Syntax for options; both local and global
+** DONE pest side
+** STRT make types
+** make parser functions return types
 
 * Allow setting array size type; has to be an int
+** in options
 
 * Allow setting array max size
+** define syntax
+** update parser
 
 * Make this write to files
 
 * Run go fmt after creating file
 
 * Add cli interface with clap
+** something less bloated preferably
+too bad it seems clap-v3 isnt done
 
 * Error message when defining reserved struct items
 ** Need to figure out what those are first
 
-* Upper bound on unknown array sizes; aka prefix-length encoded fixed size array or something
-
 * #define support for constants or similar
 
 * Support endianness configuration
-** Maybe as a per-item basis with "tags"?
+** both per-item and global
 
 * Template tests? Can I do that in a non-shit way?
 ** Some kind of full test where it runs through go test

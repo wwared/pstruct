@@ -6,10 +6,10 @@ mod renderer;
 mod types;
 
 fn main() -> Result<(), parser::Error> {
-    let tlv_zs = include_str!("../specs/simple.zs");
-    let tlv_defs = parser::parse_file(tlv_zs)?;
+    let file_contents = include_str!("../specs/options.zs");
+    let file = parser::parse_file(file_contents)?;
 
-    println!("{}", renderer::render_file("main", &tlv_defs));
+    println!("{}", renderer::render_file(&file));
 
     Ok(())
 }

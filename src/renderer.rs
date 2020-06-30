@@ -25,131 +25,119 @@ impl fmt::Display for Type<'_> {
     }
 }
 
-impl fmt::Display for ArraySize<'_> {
+impl fmt::Display for Array<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         wite!(
             f,
             match &self {
-                ArraySize::Constant(size)                   => { "[" (size) "]" }
-                ArraySize::Unknown | ArraySize::Variable(_) => { "[]" }
-                _                                           => { }
+                Array::Constant(size)                    => { "[" (size) "]" }
+                Array::Unknown(_) | Array::Variable(_,_) => { "[]" }
+                _                                        => { } // TODO bounded case
             }
         )
     }
 }
 
-fn some_kind_of_uppercase_first_letter(s: &str) -> String {
-    let mut c = s.chars(); // TODO something better than this
-    match c.next() {
-        None    => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+impl Type<'_> {
+    fn alt(&self) -> String {
+        fn some_kind_of_uppercase_first_letter(s: &str) -> String {
+            let mut c = s.chars(); // TODO something better than this
+            match c.next() {
+                None    => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        }
+
+        return some_kind_of_uppercase_first_letter(
+            fomat!(match &self {
+                Type::Byte => { [Type::U8] }
+                _          => { [self] }
+            }).as_str(),
+        );
     }
 }
 
-#[allow(unreachable_code)]
 fn render_encode_item(item: &Item, var_name: &str) -> String {
-    let item_type = some_kind_of_uppercase_first_letter(
-        fomat!(match &item.item_type {
-            Type::Byte => { [Type::U8] }
-            _          => { [item.item_type] }
-        }).as_str(),
-    );
-    if let ArraySize::NotArray = item.array_size {
+    let kind = &item.kind.alt();
+    if let Some(arr) = &item.array {
         fomat!(
-            match &item.item_type {
-                Type::User(_) => {
-                    "\t" (var_name) "." (item.name) ".EncodeStream(stream)" "\n"
+            match &arr {
+                Array::Unknown(kind) => {
+                    "\t" "stream.Write" (kind.alt()) "(" (kind) "(len(" (var_name) "." (item.name) ")))" "\n"
                 }
-                _ => {
-                    "\t" "stream.Write" (item_type) "(" (var_name) "." (item.name) ")" "\n"
+                Array::Variable(size_name, kind) => {
+                    "\t" "stream.Write" (kind.alt()) "(" (kind) "(" (var_name) "." (size_name) "))" "\n"
                 }
-            }
-        )
-    } else {
-        fomat!(
-            match &item.array_size { // FIXME by default sizes are u32s
-                ArraySize::Unknown => { "\t" "stream.WriteU32(uint32(len(" (var_name) "." (item.name) ")))" "\n" }
-                ArraySize::Variable(size_name) => { "\t" "stream.WriteU32(uint32(" (var_name) "." (size_name) "))" "\n" }
                 _ => {}
             }
             "\t" "for idx := 0; idx < int("
-                match &item.array_size {
-                    ArraySize::Constant(array_size) => { (array_size) }
-                    ArraySize::Unknown              => { "len("(var_name)"."(item.name)")" }
-                    ArraySize::Variable(size_name)  => { (var_name)"."(size_name) }
-                    _                               => { [unreachable!("unexpected NotArray")] }
+                match &arr {
+                    Array::Constant(size)         => { (size) }
+                    Array::Unknown(_)             => { "len("(var_name)"."(item.name)")" }
+                    Array::Variable(size_name, _) => { (var_name)"."(size_name) }
+                    Array::Bounded(_, _)          => { "TODO bounded case" }
                 }
                 "); idx++ {" "\n"
-            match &item.item_type {
+            match &item.kind {
                 Type::User(_) => {
                     "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t\t" "stream.Write" (item_type) "(" (var_name) "." (item.name) "[idx])" "\n"
+                    "\t\t" "stream.Write" (kind) "(" (var_name) "." (item.name) "[idx])" "\n"
                 }
             }
-            "\t" "}" "\n"
-        )
-    }
-}
-
-#[allow(unreachable_code)]
-fn render_decode_item(item: &Item, var_name: &str) -> String {
-    let item_type = some_kind_of_uppercase_first_letter(
-        fomat!(match &item.item_type {
-            Type::Byte => {[Type::U8]}
-            _ => {[item.item_type]}
-        })
-        .as_str(),
-    );
-    if let ArraySize::NotArray = item.array_size {
-        fomat!(
-            match &item.item_type {
-                Type::User(_) => {
-                    "\t" "err = " (var_name) "." (item.name) ".DecodeStream(stream)" "\n"
-                }
-                _ => {
-                    "\t" (var_name) "." (item.name) ", err = stream.Read" (item_type) "()" "\n"
-                }
-            }
-            "\t" "if err != nil {" "\n"
-            "\t\t" "return err" "\n"
             "\t" "}" "\n"
         )
     } else {
         fomat!(
-            match &item.array_size {
-                ArraySize::Unknown => { // FIXME by default sizes are u32s
-                    "\t" (var_name) "_" (item.name) "_size, err := stream.ReadU32()" "\n"
-                    "\t" "if err != nil {" "\n"
-                    "\t\t" "return err" "\n"
-                    "\t" "}" "\n"
-                    "\t" (var_name) "." (item.name) " = make([]" (item.item_type) ", " (var_name) "_" (item.name) "_size)" "\n"
+            match &item.kind {
+                Type::User(_) => {
+                    "\t" (var_name) "." (item.name) ".EncodeStream(stream)" "\n"
                 }
-                ArraySize::Variable(size_name) => { // FIXME by default sizes are u32s
-                    "\t" (var_name) "_" (size_name) "_tmp, err := stream.ReadU32()" "\n"
+                _ => {
+                    "\t" "stream.Write" (kind) "(" (var_name) "." (item.name) ")" "\n"
+                }
+            }
+        )
+    }
+}
+
+fn render_decode_item(item: &Item, var_name: &str) -> String {
+    let kind = &item.kind.alt();
+    if let Some(arr) = &item.array {
+        fomat!(
+            match &arr {
+                Array::Unknown(kind) => {
+                    "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (kind.alt()) "()" "\n"
                     "\t" "if err != nil {" "\n"
                     "\t\t" "return err" "\n"
                     "\t" "}" "\n"
-                    "\t" (var_name) "." (size_name) " = " (item.item_type) "(" (var_name) "_" (size_name) "_tmp)" "\n"
-                    "\t" (var_name) "." (item.name) " = make([]" (item.item_type) ", " (var_name) "." (size_name) ")" "\n"
+                    "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
+                }
+                Array::Variable(size_name, kind) => {
+                    "\t" (var_name) "_" (size_name) "_tmp, err := stream.Read" (kind.alt()) "()" "\n"
+                    "\t" "if err != nil {" "\n"
+                    "\t\t" "return err" "\n"
+                    "\t" "}" "\n"
+                    "\t" (var_name) "." (size_name) " = " (item.kind) "(" (var_name) "_" (size_name) "_tmp)" "\n"
+                    "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
                 }
                 _ => {}
             }
             "\t" "for idx := 0; idx < int("
-                match &item.array_size {
-                    ArraySize::Constant(array_size) => { (array_size) }
-                    ArraySize::Unknown              => { (var_name) "_" (item.name) "_size" }
-                    ArraySize::Variable(size_name)  => { (var_name) "." (size_name) }
-                    _                               => {[unreachable!("unexpected NotArray")]}
+                match &arr {
+                    Array::Constant(size)        => { (size) }
+                    Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
+                    Array::Variable(size_name,_) => { (var_name) "." (size_name) }
+                    Array::Bounded(_, _)         => { "TODO Bounded" }
                 }
                 "); idx++ {" "\n"
-            match &item.item_type {
+            match &item.kind {
                 Type::User(_) => {
                     "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
                 }
                 _ => {
-                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_type) "()\n"
+                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (kind) "()\n"
                 }
             }
             "\t\t" "if err != nil {" "\n"
@@ -157,37 +145,54 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
             "\t\t" "}" "\n"
             "\t" "}" "\n"
         )
+    } else {
+        fomat!(
+            match &item.kind {
+                Type::User(_) => {
+                    "\t" "err = " (var_name) "." (item.name) ".DecodeStream(stream)" "\n"
+                }
+                _ => {
+                    "\t" (var_name) "." (item.name) ", err = stream.Read" (kind) "()" "\n"
+                }
+            }
+            "\t" "if err != nil {" "\n"
+            "\t\t" "return err" "\n"
+            "\t" "}" "\n"
+        )
     }
 }
 
-impl fmt::Display for Definition<'_> {
+impl fmt::Display for Struct<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let var_name = self .name .get(0..1) .map(|x| x.to_lowercase()) .ok_or(fmt::Error)?;
-        let item_type = &self.name;
+        let var_name = self.name.get(0..1) .map(|x| x.to_lowercase()) .ok_or(fmt::Error)?;
+        let kind = &self.name;
         wite!(
             f,
-            "type " (item_type) " struct {" "\n"
+            "type " (kind) " struct {" "\n"
             for item in &self.items {
-                "\t" (item.name) "\t" (item.array_size) (item.item_type) "\n"
+                match &item.array {
+                    Some(arr) => { "\t" (item.name) "\t" (arr) (item.kind) "\n" }
+                    None      => { "\t" (item.name) "\t" (item.kind) "\n" }
+                } // TODO do something better?
             }
             "}" "\n\n"
-            "func New" (item_type) "() " (item_type) " {" "\n"
-            "\t" "return " (item_type) "{}" "\n"
+            "func New" (kind) "() " (kind) " {" "\n"
+            "\t" "return " (kind) "{}" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (item_type) ") Encode() []byte {" "\n"
+            "func (" (var_name) " *" (kind) ") Encode() []byte {" "\n"
             "\t" "stream := ps.NewStream()" "\n"
             "\t" (var_name) ".EncodeStream(stream)" "\n"
             "\t" "return stream.GetData()" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (item_type) ") Decode(data []byte) error {" "\n"
+            "func (" (var_name) " *" (kind) ") Decode(data []byte) error {" "\n"
             "\t" "return " (var_name) ".DecodeStream(ps.NewStreamReader(data))" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (item_type) ") EncodeStream(stream *ps.Stream) {" "\n"
+            "func (" (var_name) " *" (kind) ") EncodeStream(stream *ps.Stream) {" "\n"
             for item in &self.items {
                 (render_encode_item(item, var_name.as_str()))
             }
             "}" "\n\n"
-            "func (" (var_name) " *" (item_type) ") DecodeStream(stream *ps.Stream) error {" "\n"
+            "func (" (var_name) " *" (kind) ") DecodeStream(stream *ps.Stream) error {" "\n"
             "\t" "var err error" "\n"
             for item in &self.items {
                 (render_decode_item(item, var_name.as_str()))
@@ -198,11 +203,11 @@ impl fmt::Display for Definition<'_> {
     }
 }
 
-pub fn render_file(package_name: &str, file_definitions: &Vec<Definition>) -> String {
+pub fn render_file(file: &File) -> String {
     fomat!(
-        "package " (package_name.to_lowercase()) "\n\n"
+        "package " (file.name.to_lowercase()) "\n\n"
         r#"import ps "github.com/wwared/pstruct/runtime""# "\n\n"
-        for definition in file_definitions {
+        for definition in &file.structs {
             (definition)
         }
     )
