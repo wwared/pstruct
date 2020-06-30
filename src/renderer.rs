@@ -58,7 +58,7 @@ impl Type<'_> {
 }
 
 fn render_encode_item(item: &Item, var_name: &str) -> String {
-    let kind = &item.kind.alt();
+    let item_kind = &item.kind.alt();
     if let Some(arr) = &item.array {
         fomat!(
             match &arr {
@@ -83,7 +83,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t\t" "stream.Write" (kind) "(" (var_name) "." (item.name) "[idx])" "\n"
+                    "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx])" "\n"
                 }
             }
             "\t" "}" "\n"
@@ -95,7 +95,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "\t" (var_name) "." (item.name) ".EncodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t" "stream.Write" (kind) "(" (var_name) "." (item.name) ")" "\n"
+                    "\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) ")" "\n"
                 }
             }
         )
@@ -103,7 +103,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
 }
 
 fn render_decode_item(item: &Item, var_name: &str) -> String {
-    let kind = &item.kind.alt();
+    let item_kind = &item.kind.alt();
     if let Some(arr) = &item.array {
         fomat!(
             match &arr {
@@ -137,7 +137,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
                 }
                 _ => {
-                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (kind) "()\n"
+                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "()\n"
                 }
             }
             "\t\t" "if err != nil {" "\n"
@@ -152,7 +152,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "\t" "err = " (var_name) "." (item.name) ".DecodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t" (var_name) "." (item.name) ", err = stream.Read" (kind) "()" "\n"
+                    "\t" (var_name) "." (item.name) ", err = stream.Read" (item_kind) "()" "\n"
                 }
             }
             "\t" "if err != nil {" "\n"
@@ -165,10 +165,9 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
 impl fmt::Display for Struct<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let var_name = self.name.get(0..1) .map(|x| x.to_lowercase()) .ok_or(fmt::Error)?;
-        let kind = &self.name;
         wite!(
             f,
-            "type " (kind) " struct {" "\n"
+            "type " (self.name) " struct {" "\n"
             for item in &self.items {
                 match &item.array {
                     Some(arr) => { "\t" (item.name) "\t" (arr) (item.kind) "\n" }
@@ -176,23 +175,23 @@ impl fmt::Display for Struct<'_> {
                 } // TODO do something better?
             }
             "}" "\n\n"
-            "func New" (kind) "() " (kind) " {" "\n"
-            "\t" "return " (kind) "{}" "\n"
+            "func New" (self.name) "() " (self.name) " {" "\n"
+            "\t" "return " (self.name) "{}" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (kind) ") Encode() []byte {" "\n"
+            "func (" (var_name) " *" (self.name) ") Encode() []byte {" "\n"
             "\t" "stream := ps.NewStream()" "\n"
             "\t" (var_name) ".EncodeStream(stream)" "\n"
             "\t" "return stream.GetData()" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (kind) ") Decode(data []byte) error {" "\n"
+            "func (" (var_name) " *" (self.name) ") Decode(data []byte) error {" "\n"
             "\t" "return " (var_name) ".DecodeStream(ps.NewStreamReader(data))" "\n"
             "}" "\n\n"
-            "func (" (var_name) " *" (kind) ") EncodeStream(stream *ps.Stream) {" "\n"
+            "func (" (var_name) " *" (self.name) ") EncodeStream(stream *ps.Stream) {" "\n"
             for item in &self.items {
                 (render_encode_item(item, var_name.as_str()))
             }
             "}" "\n\n"
-            "func (" (var_name) " *" (kind) ") DecodeStream(stream *ps.Stream) error {" "\n"
+            "func (" (var_name) " *" (self.name) ") DecodeStream(stream *ps.Stream) error {" "\n"
             "\t" "var err error" "\n"
             for item in &self.items {
                 (render_decode_item(item, var_name.as_str()))
