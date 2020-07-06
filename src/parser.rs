@@ -11,6 +11,17 @@ pub type Error = pest::error::Error<Rule>;
 #[grammar = "struct.pest"]
 struct StructParser;
 
+struct Options<'a> {
+    max_array_size: Option<usize>,
+    array_size_type: Type<'a>,
+
+    endian: Endian,
+}
+
+fn default_options() -> Options<'static> {
+    Options { max_array_size: None, array_size_type: Type::I32, endian: Endian::Little }
+}
+
 // unwraps look spooky but the grammar says it's fine
 fn parse_definition(pair: Pair<Rule>) -> Struct {
     assert!(pair.as_rule() == Rule::definition, "expected definition");
@@ -37,6 +48,41 @@ fn parse_item_type(type_name: &str) -> Type {
     }
 }
 
+fn parse_options(pair: Pair<Rule>) -> Options {
+    let mut res = default_options();
+    assert!(pair.as_rule() == Rule::options, "expected option");
+    for option in pair.into_inner() {
+        assert!(option.as_rule() == Rule::option, "expected option");
+        let mut inner = option.into_inner();
+        let key = inner.next().unwrap().as_str();
+        let value = inner.next().unwrap().as_str();
+        match key {
+            "max_array_size" => {
+                let size = value.parse::<usize>().unwrap();
+                res.max_array_size = Some(size);
+            },
+            "array_size_type" => {
+                let kind = parse_item_type(value);
+                match kind {
+                    Type::Byte | Type::String | Type::User(_) => { unreachable!("array_size_type must be integer valued") },
+                    _ => {  },
+                };
+                res.array_size_type = kind;
+            },
+            "endian" => {
+                res.endian = match value {
+                    "big"    => { Endian::Big },
+                    "little" => { Endian::Little },
+                    _        => { unreachable!("unknown endianness {}", value) }
+                };
+            },
+            _ => unreachable!("unknown key {}", key)
+        }
+
+    }
+    res
+}
+
 fn parse_item(pair: Pair<Rule>) -> Item {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
     eprintln!("Parsing item {}", pair.as_str());
@@ -45,6 +91,15 @@ fn parse_item(pair: Pair<Rule>) -> Item {
     eprintln!("Item name {:?}", name);
     let type_pair = inner_rules.next().unwrap();
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
+
+    let item_options = if let Some(opts_pair) = inner_rules.next() {
+        assert!(opts_pair.as_rule() == Rule::options, "expected options");
+        // eprintln!("Found options {:#?}", opts_pair);
+        parse_options(opts_pair)
+    } else {
+        default_options()
+    };
+
     let array: Option<Array>;
     let item_type: Type;
     let mut type_inner = type_pair.into_inner();
@@ -55,19 +110,19 @@ fn parse_item(pair: Pair<Rule>) -> Item {
                 let arr_str = arr_pair.as_str();
                 array = match arr_str.parse::<usize>() {
                     Ok(size) => Some(Array::Constant(size)),
-                    Err(_) => Some(Array::Variable(arr_str, Type::I32)), // FIXME type here
+                    Err(_) => Some(Array::Variable(arr_str, item_options.array_size_type)),
                 };
             } else {
-                array = Some(Array::Unknown(Type::I32)); // FIXME
+                array = Some(Array::Unknown(item_options.array_size_type));
             }
             eprintln!("{:?}", array);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
-        Rule::identifier => {
+        Rule::item_identifier => {
             array = None;
             item_type = parse_item_type(first_elem.as_str());
         },
-        _ => unreachable!("expected array or identifier")
+        _ => unreachable!("expected array or item_identifier")
     };
     if item_type == Type::CString && array.is_none() {
         panic!("cstrings must be arrays");

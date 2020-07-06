@@ -11,14 +11,16 @@ Otherwise the encoding makes no sense
 
 * Syntax for options; both local and global
 ** DONE pest side
-** STRT make types
-** make parser functions return types
+** DONE make types
+** DONE make parser functions return types
+** STRT get options from file
+** use the options
 
 * Allow setting array size type; has to be an int
 ** in options
 
 * Allow setting array max size
-** define syntax
+** define syntax; probably an option
 ** update parser
 
 * Make this write to files
@@ -35,7 +37,7 @@ too bad it seems clap-v3 isnt done
 * #define support for constants or similar
 
 * Support endianness configuration
-** both per-item and global
+** both per-item and global; currently only per-item options
 
 * Template tests? Can I do that in a non-shit way?
 ** Some kind of full test where it runs through go test

@@ -1,15 +1,20 @@
 file = _{ SOI ~ LINE* ~ (definition ~ EOL*)+ ~ EOI }
 
 definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)+ ~ LINE* ~ "}" }
-struct_name = ${ "struct" ~ WHITESPACE+ ~ identifier }
+struct_name = ${ "struct" ~ WHITESPACE+ ~ item_identifier }
 
-identifier     = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
-array          = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | identifier }
-array_brackets = ${ "[" ~ array? ~ "]" }
+item_identifier = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 
-flags       = ${ "" }
-type_decl   = ${ array_brackets? ~ identifier }
-struct_item = ${ identifier ~ WHITESPACE+ ~ type_decl ~ (WHITESPACE+ ~ flags)? }
+array           = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | item_identifier }
+array_brackets  = ${ "[" ~ array? ~ "]" }
+
+identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
+
+option  = ${ identifier ~ ":" ~ identifier }
+options = ${ option ~ (WHITESPACE+ ~ option)* }
+
+type_decl   = ${ array_brackets? ~ item_identifier }
+struct_item = ${ item_identifier ~ WHITESPACE+ ~ type_decl ~ (WHITESPACE+ ~ options)? }
 
 WHITESPACE = _{ " " | "\t" }
 EOL        = _{ "\n" | ("\r" ~ "\n"?) }

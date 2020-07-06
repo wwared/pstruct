@@ -1,5 +1,5 @@
 struct Inner {
-  U8 u8
+  U8 u8 endian:big //array_index:u8
   U16 u16
 }
 
