@@ -32,7 +32,7 @@ fn parse_item_type(type_name: &str) -> Type {
     match type_name {
         "u8" => Type::U8, "u16" => Type::U16, "u32" => Type::U32, "u64" => Type::U64,
         "i8" => Type::I8, "i16" => Type::I16, "i32" => Type::I32, "i64" => Type::I64,
-        "byte" => Type::Byte, "string" => Type::String,
+        "byte" => Type::Byte, "string" => Type::String, "cstring" => Type::CString,
         _ => Type::User(type_name)
     }
 }
@@ -69,6 +69,9 @@ fn parse_item(pair: Pair<Rule>) -> Item {
         },
         _ => unreachable!("expected array or identifier")
     };
+    if item_type == Type::CString && array.is_none() {
+        panic!("cstrings must be arrays");
+    }
     Item { name, kind: item_type, array, byte_order: Endian::Little, }
 }
 

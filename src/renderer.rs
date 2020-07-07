@@ -19,6 +19,7 @@ impl fmt::Display for Type<'_> {
                 Type::I64             => { "int64" }
                 Type::Byte            => { "byte" }
                 Type::String          => { "string" }
+                Type::CString         => { "string" }
                 Type::User(user_type) => { (user_type) }
             }
         )
@@ -61,32 +62,44 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
     if let Some(arr) = &item.array {
         fomat!(
-            match &arr {
-                Array::Unknown(kind) => {
-                    "\t" "stream.Write" (kind.alt()) "(" (kind) "(len(" (var_name) "." (item.name) ")))" "\n"
-                }
-                Array::Variable(size_name, kind) => {
-                    "\t" "stream.Write" (kind.alt()) "(" (kind) "(" (var_name) "." (size_name) "))" "\n"
-                }
-                _ => {}
-            }
-            "\t" "for idx := 0; idx < int("
+            if item.kind != Type::CString {
                 match &arr {
-                    Array::Constant(size)         => { (size) }
-                    Array::Unknown(_)             => { "len("(var_name)"."(item.name)")" }
-                    Array::Variable(size_name, _) => { (var_name)"."(size_name) }
-                    Array::Bounded(_, _)          => { "TODO bounded case" }
+                    Array::Unknown(kind) => {
+                        "\t" "stream.Write" (kind.alt()) "(" (kind) "(len(" (var_name) "." (item.name) ")))" "\n"
+                    }
+                    Array::Variable(size_name, kind) => {
+                        "\t" "stream.Write" (kind.alt()) "(" (kind) "(" (var_name) "." (size_name) "))" "\n"
+                    }
+                    _ => {}
                 }
-                "); idx++ {" "\n"
+                "\t" "for idx := 0; idx < int("
+                    match &arr {
+                        Array::Constant(size)         => { (size) }
+                        Array::Unknown(_)             => { "len("(var_name)"."(item.name)")" }
+                        Array::Variable(size_name, _) => { (var_name)"."(size_name) }
+                        Array::Bounded(_, _)          => { "TODO bounded case" }
+                    }
+                    "); idx++ {" "\n"
+            }
             match &item.kind {
                 Type::User(_) => {
                     "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
+                }
+                Type::CString => {
+                    match &arr {
+                        Array::Constant(size) => {
+                            "\t" "stream.WriteCString(" (var_name) "." (item.name) ", " (size) ")" "\n"
+                        }
+                        _ => { /*unimplemented!("cstrings with non-constant sizes not supported")*/ }
+                    }
                 }
                 _ => {
                     "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx])" "\n"
                 }
             }
-            "\t" "}" "\n"
+            if item.kind != Type::CString {
+                "\t" "}" "\n"
+            }
         )
     } else {
         fomat!(
@@ -106,35 +119,45 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
     if let Some(arr) = &item.array {
         fomat!(
-            match &arr {
-                Array::Unknown(kind) => {
-                    "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (kind.alt()) "()" "\n"
-                    "\t" "if err != nil {" "\n"
-                    "\t\t" "return err" "\n"
-                    "\t" "}" "\n"
-                    "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
-                }
-                Array::Variable(size_name, kind) => {
-                    "\t" (var_name) "_" (size_name) "_tmp, err := stream.Read" (kind.alt()) "()" "\n"
-                    "\t" "if err != nil {" "\n"
-                    "\t\t" "return err" "\n"
-                    "\t" "}" "\n"
-                    "\t" (var_name) "." (size_name) " = " (item.kind) "(" (var_name) "_" (size_name) "_tmp)" "\n"
-                    "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
-                }
-                _ => {}
-            }
-            "\t" "for idx := 0; idx < int("
+            if item.kind != Type::CString {
                 match &arr {
-                    Array::Constant(size)        => { (size) }
-                    Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
-                    Array::Variable(size_name,_) => { (var_name) "." (size_name) }
-                    Array::Bounded(_, _)         => { "TODO Bounded" }
+                    Array::Unknown(kind) => {
+                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (kind.alt()) "()" "\n"
+                        "\t" "if err != nil {" "\n"
+                        "\t\t" "return err" "\n"
+                        "\t" "}" "\n"
+                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
+                    }
+                    Array::Variable(size_name, kind) => {
+                        "\t" (var_name) "_" (size_name) "_tmp, err := stream.Read" (kind.alt()) "()" "\n"
+                        "\t" "if err != nil {" "\n"
+                        "\t\t" "return err" "\n"
+                        "\t" "}" "\n"
+                        "\t" (var_name) "." (size_name) " = " (item.kind) "(" (var_name) "_" (size_name) "_tmp)" "\n"
+                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
+                    }
+                    _ => {}
                 }
-                "); idx++ {" "\n"
+                "\t" "for idx := 0; idx < int("
+                    match &arr {
+                        Array::Constant(size)        => { (size) }
+                        Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
+                        Array::Variable(size_name,_) => { (var_name) "." (size_name) }
+                        Array::Bounded(_, _)         => { "TODO Bounded" }
+                    }
+                    "); idx++ {" "\n"
+            }
             match &item.kind {
                 Type::User(_) => {
                     "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
+                }
+                Type::CString => {
+                    match &arr {
+                        Array::Constant(size) => {
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadCString(" (size) ")" "\n"
+                        }
+                        _ => { /*unimplemented!("cstrings with non-constant sizes not supported")*/ }
+                    }
                 }
                 _ => {
                     "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "()\n"
@@ -143,7 +166,9 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
             "\t\t" "if err != nil {" "\n"
             "\t\t\t" "return err" "\n"
             "\t\t" "}" "\n"
-            "\t" "}" "\n"
+            if item.kind != Type::CString {
+                "\t" "}" "\n"
+            }
         )
     } else {
         fomat!(
@@ -170,8 +195,14 @@ impl fmt::Display for Struct<'_> {
             "type " (self.name) " struct {" "\n"
             for item in &self.items {
                 match &item.array {
-                    Some(arr) => { "\t" (item.name) "\t" (arr) (item.kind) "\n" }
-                    None      => { "\t" (item.name) "\t" (item.kind) "\n" }
+                    Some(arr) => {
+                        if item.kind == Type::CString {
+                            "\t" (item.name) "\t" (item.kind) "\n"
+                        } else {
+                            "\t" (item.name) "\t" (arr) (item.kind) "\n"
+                        }
+                    }
+                    None => { "\t" (item.name) "\t" (item.kind) "\n" }
                 } // TODO do something better?
             }
             "}" "\n\n"

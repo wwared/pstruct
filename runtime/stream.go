@@ -230,8 +230,11 @@ func (s *Stream) ReadCString(i uint64) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read C string (%d bytes) at position %d: out of bounds", i, s.pos)
 	}
-
-	return string(bytes.Trim(b, "\x00")), nil
+	end := bytes.IndexByte(b, '\x00')
+	if end == -1 {
+		return string(b), nil
+	}
+	return string(b[:end]), nil
 }
 
 func (s *Stream) ReadBytes(i uint64) ([]byte, error) {
