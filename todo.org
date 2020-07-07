@@ -42,3 +42,9 @@ too bad it seems clap-v3 isnt done
 
 * Make template code a bit more language-extendable
 ** If it looks too annoying to make it without having another language to write for, just ignore for now
+
+* dummy values
+
+* magic values -> kinda like dummy values, but have a constraint associated
+
+* better error checking for cstrings
