@@ -125,17 +125,11 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
 #[test]
 fn parser_tests() {
     // TODO: check for an easy way to remove the repetition
-    let test = include_str!("../specs/tlv.zs");
+    let test = include_str!("../specs/simple.zs");
     let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_ok(), "tlv.zs");
+    assert!(res.is_ok(), "simple.zs");
     let res = parse_file(test);
-    assert!(res.is_ok(), "tlv.zs");
-
-    let test = include_str!("../specs/ak.zs");
-    let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_ok(), "ak.zs");
-    let res = parse_file(test);
-    assert!(res.is_ok(), "ak.zs");
+    assert!(res.is_ok(), "simple.zs");
 
     let test = "
 struct player {

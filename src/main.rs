@@ -6,7 +6,7 @@ mod renderer;
 mod types;
 
 fn main() -> Result<(), parser::Error> {
-    let file_contents = include_str!("../specs/options.zs");
+    let file_contents = include_str!("../specs/simple.zs");
     let file = parser::parse_file(file_contents)?;
 
     println!("{}", renderer::render_file(&file));
