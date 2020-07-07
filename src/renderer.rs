@@ -48,12 +48,12 @@ impl Type<'_> {
             }
         }
 
-        return some_kind_of_uppercase_first_letter(
+        some_kind_of_uppercase_first_letter(
             fomat!(match &self {
                 Type::Byte => { [Type::U8] }
                 _          => { [self] }
             }).as_str(),
-        );
+        )
     }
 }
 

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use pest::Parser;
 use pest::error::ErrorVariant;
 use pest::iterators::Pair;
@@ -14,12 +14,12 @@ struct StructParser;
 // unwraps look spooky but the grammar says it's fine
 fn parse_definition(pair: Pair<Rule>) -> Struct {
     assert!(pair.as_rule() == Rule::definition, "expected definition");
-    println!("Parsing definition {}", pair.as_str());
+    eprintln!("Parsing definition {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
-    println!("Inner rules {:?}", inner_rules);
+    eprintln!("Inner rules {:?}", inner_rules);
     // struct_name -> identifier -> as_str
     let name = inner_rules.next().unwrap().into_inner().next().unwrap().as_str();
-    println!("Name {:?}", name);
+    eprintln!("Name {:?}", name);
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
@@ -39,10 +39,10 @@ fn parse_item_type(type_name: &str) -> Type {
 
 fn parse_item(pair: Pair<Rule>) -> Item {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
-    println!("Parsing item {}", pair.as_str());
+    eprintln!("Parsing item {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
-    println!("Item name {:?}", name);
+    eprintln!("Item name {:?}", name);
     let type_pair = inner_rules.next().unwrap();
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
     let array: Option<Array>;
@@ -60,7 +60,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
             } else {
                 array = Some(Array::Unknown(Type::I32)); // FIXME
             }
-            println!("{:?}", array);
+            eprintln!("{:?}", array);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
         Rule::identifier => {
@@ -82,27 +82,24 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
 
     for def_pair in parse_res {
         if def_pair.as_rule() == Rule::EOI { break; }
-        println!("---------");
+        eprintln!("---------");
         let def = parse_definition(def_pair);
-        println!("{:#?}", def);
+        eprintln!("{:#?}", def);
         for item in &def.items {
-            defined_vars.insert(item.name.clone());
+            defined_vars.insert(item.name);
         }
-        defined_structs.insert(def.name.clone());
+        defined_structs.insert(def.name);
         definitions.push(def);
     }
     for def in &definitions {
         for item in &def.items {
             // check for undefined types
-            match &item.kind {
-                Type::User(typ) => {
-                    if !defined_structs.contains(typ) {
-                        let message = format!("{}: Undefined type '{}'", def.name, typ);
-                        let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap();
-                        return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
-                    }
-                },
-                _ => (),
+            if let Type::User(typ) = &item.kind {
+                if !defined_structs.contains(typ) {
+                    let message = format!("{}: Undefined type '{}'", def.name, typ);
+                    let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap();
+                    return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
+                }
             }
             // check for undefined variables
             if let Some(Array::Variable(var, _)) = &item.array {
@@ -114,7 +111,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             }
         }
     }
-    let names = defined_structs.iter().map(|s| s.clone()).collect::<Vec<&str>>().join(", ");
+    let names = defined_structs.iter().cloned().collect::<Vec<&str>>().join(", ");
     eprintln!("Got a total of {} definitions: {}", defined_structs.len(), names);
 
     // TODO package name
