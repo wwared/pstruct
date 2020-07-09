@@ -25,12 +25,12 @@ fn default_options() -> Options<'static> {
 // unwraps look spooky but the grammar says it's fine
 fn parse_definition(pair: Pair<Rule>) -> Struct {
     assert!(pair.as_rule() == Rule::definition, "expected definition");
-    eprintln!("Parsing definition {}", pair.as_str());
+    // eprintln!("Parsing definition {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
-    eprintln!("Inner rules {:?}", inner_rules);
+    // eprintln!("Inner rules {:?}", inner_rules);
     // struct_name -> identifier -> as_str
     let name = inner_rules.next().unwrap().into_inner().next().unwrap().as_str();
-    eprintln!("Name {:?}", name);
+    // eprintln!("Name {:?}", name);
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
@@ -85,10 +85,10 @@ fn parse_options(pair: Pair<Rule>) -> Options {
 
 fn parse_item(pair: Pair<Rule>) -> Item {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
-    eprintln!("Parsing item {}", pair.as_str());
+    // eprintln!("Parsing item {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
-    eprintln!("Item name {:?}", name);
+    // eprintln!("Item name {:?}", name);
     let type_pair = inner_rules.next().unwrap();
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
 
@@ -115,7 +115,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
             } else {
                 array = Some(Array::Unknown(item_options.array_size_type));
             }
-            eprintln!("{:?}", array);
+            // eprintln!("{:?}", array);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
         Rule::item_identifier => {
@@ -140,9 +140,9 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
 
     for def_pair in parse_res {
         if def_pair.as_rule() == Rule::EOI { break; }
-        eprintln!("---------");
+        // eprintln!("---------");
         let def = parse_definition(def_pair);
-        eprintln!("{:#?}", def);
+        // eprintln!("{:#?}", def);
         for item in &def.items {
             defined_vars.insert(item.name);
         }
@@ -170,7 +170,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         }
     }
     let names = defined_structs.iter().cloned().collect::<Vec<&str>>().join(", ");
-    eprintln!("Got a total of {} definitions: {}", defined_structs.len(), names);
+    println!("{} definitions: {}", defined_structs.len(), names);
 
     // TODO package name
     Ok(File { name: "main", structs: definitions })
