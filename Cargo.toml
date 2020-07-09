@@ -7,5 +7,6 @@ edition = "2018"
 [dependencies]
 pest = "2"
 pest_derive = "2"
-fomat-macros = "0.3.1"
+fomat-macros = "0.3"
 walkdir = "2"
+gumdrop = "0.8"

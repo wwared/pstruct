@@ -5,68 +5,87 @@ mod parser;
 mod renderer;
 mod types;
 
-use std::{env, error, fs, path, io};
+use std::{error, fs, path, io};
+use gumdrop::Options;
 
-fn print_help() {
-    println!("ok");
+#[derive(Options)]
+struct CliOptions {
+    #[options(free, help = "input files or directories", parse(from_str = "parse_path"))]
+    spec_files: Vec<path::PathBuf>,
+
+    #[options(help = "print this help message")]
+    help: bool,
+
+    #[options(help = "don't write any files")]
+    dry_run: bool,
+
+    #[options(help = "output directory", parse(from_str = "parse_path"))]
+    output: Option<path::PathBuf>,
+}
+
+fn parse_path(s: &str) -> path::PathBuf {
+    path::PathBuf::from(s)
+}
+
+fn print_usage_and_error(error: Option<&str>) -> ! {
+    if let Some(s) = error {
+        println!("ERROR: {}\n", s);
+    }
+    println!("{}", CliOptions::usage());
+    if error.is_none() {
+        std::process::exit(0);
+    } else {
+        std::process::exit(1);
+    }
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
+    let opts = CliOptions::parse_args_default_or_exit();
+
+    if opts.help_requested() {
+        print_usage_and_error(None);
+    }
+
+    // get input files
     let mut files = vec![];
-    let mut output_directory = None;
-    let mut dry_run = false;
-    for arg in env::args().skip(1) {
-        if arg.starts_with('-') {
-            let x: Vec<&str> = arg.trim_start_matches('-').splitn(2, '=').collect();
-            match x[0].to_lowercase().as_str() {
-                "h" | "help" => {
-                    print_help();
-                    return Ok(());
-                },
-                "o" | "output" => {
-                    output_directory = Some(path::PathBuf::from(x[1]));
-                },
-                "d" | "dry" => {
-                    dry_run = true;
-                },
-                unknown_option => {
-                    eprintln!("unknown option {}", unknown_option);
+    for path in &opts.spec_files {
+        if path.is_dir() {
+            for entry in walkdir::WalkDir::new(path).follow_links(true) {
+                let subpath = entry?.into_path();
+                if !subpath.is_file() {
                     continue;
                 }
-            }
-        } else {
-            let file = path::PathBuf::from(arg.clone());
-            if file.is_dir() {
-                for entry in walkdir::WalkDir::new(file).follow_links(true) {
-                    let subfile = entry?.into_path();
-                    if !subfile.is_file() {
-                        continue;
-                    }
-                    if let Some(ext) = subfile.extension() {
-                        if ext.to_str().unwrap().to_lowercase() == "zs" {
-                            files.push(subfile);
-                        }
+                if let Some(ext) = subpath.extension() {
+                    if ext.to_str().unwrap().to_lowercase() == "zs" {
+                        files.push(subpath);
                     }
                 }
-            } else if file.is_file() {
-                files.push(file);
-            } else {
-                eprintln!("'{}' does not exist, ignoring...", arg);
             }
+        } else if path.is_file() {
+            files.push(path.clone());
+        } else {
+            eprintln!("'{}' does not exist, ignoring...", path.to_str().unwrap());
         }
     }
     if files.is_empty() {
-        print_help();
-        return Err(Box::new(io::Error::new(io::ErrorKind::Other, "no files specified")));
+        print_usage_and_error(Some("no files specified"));
     }
-    if let Some(dir) = &output_directory {
+
+    // validate output directory
+    if let Some(dir) = &opts.output {
         if  !dir.exists() || dir.is_file() {
-            return Err(Box::new(io::Error::new(io::ErrorKind::Other, format!("'{}' is not a directory", dir.to_str().unwrap()))));
+            print_usage_and_error(Some(format!("'{}' is not a directory", dir.to_str().unwrap()).as_str()));
         }
     }
+
+    if opts.dry_run {
+        println!("dry run -- will not write files\n");
+    }
+
+    // render files
     let mut rendered_files = vec![];
     for file in &files {
-        let mut output = match &output_directory {
+        let mut output = match &opts.output {
             Some(dir) => {
                 let mut p = dir.clone();
                 p.push(file.file_name().unwrap());
@@ -83,17 +102,19 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             }
         }
 
-        println!("\n{} -> {}", file.to_str().unwrap(), output.to_str().unwrap());
+        println!("{} -> {}", file.to_str().unwrap(), output.to_str().unwrap());
         let file_contents = fs::read_to_string(file)?;
         let file = parser::parse_file(file_contents.as_str())?;
         rendered_files.push((output, renderer::render_file(&file)));
+        println!();
     }
 
-    if !dry_run {
+    if !opts.dry_run {
         for (output, rendered_file) in rendered_files {
             fs::write(output, rendered_file)?;
         }
     }
 
+    println!("done!");
     Ok(())
 }
