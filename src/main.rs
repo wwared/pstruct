@@ -5,26 +5,32 @@ mod parser;
 mod renderer;
 mod types;
 
-use std::{error, fs, path, io};
+use std::path::PathBuf;
+use std::{error, fs, io, process};
+
 use gumdrop::Options;
+use walkdir::WalkDir;
 
 #[derive(Options)]
 struct CliOptions {
     #[options(free, help = "input files or directories", parse(from_str = "parse_path"))]
-    spec_files: Vec<path::PathBuf>,
+    spec_files: Vec<PathBuf>,
 
     #[options(help = "print this help message")]
     help: bool,
 
+    #[options(help = "output directory", parse(from_str = "parse_path"))]
+    output: Option<PathBuf>,
+
     #[options(help = "don't write any files")]
     dry_run: bool,
 
-    #[options(help = "output directory", parse(from_str = "parse_path"))]
-    output: Option<path::PathBuf>,
+    #[options(no_short, help = "don't run go fmt on generated files")]
+    disable_auto_format: bool,
 }
 
-fn parse_path(s: &str) -> path::PathBuf {
-    path::PathBuf::from(s)
+fn parse_path(s: &str) -> PathBuf {
+    PathBuf::from(s)
 }
 
 fn print_usage_and_error(error: Option<&str>) -> ! {
@@ -33,9 +39,9 @@ fn print_usage_and_error(error: Option<&str>) -> ! {
     }
     println!("{}", CliOptions::usage());
     if error.is_none() {
-        std::process::exit(0);
+        process::exit(0);
     } else {
-        std::process::exit(1);
+        process::exit(1);
     }
 }
 
@@ -50,7 +56,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let mut files = vec![];
     for path in &opts.spec_files {
         if path.is_dir() {
-            for entry in walkdir::WalkDir::new(path).follow_links(true) {
+            for entry in WalkDir::new(path).follow_links(true) {
                 let subpath = entry?.into_path();
                 if !subpath.is_file() {
                     continue;
@@ -76,10 +82,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         if  !dir.exists() || dir.is_file() {
             print_usage_and_error(Some(format!("'{}' is not a directory", dir.to_str().unwrap()).as_str()));
         }
-    }
-
-    if opts.dry_run {
-        println!("dry run -- will not write files\n");
     }
 
     // render files
@@ -109,10 +111,20 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         println!();
     }
 
-    if !opts.dry_run {
-        for (output, rendered_file) in rendered_files {
-            fs::write(output, rendered_file)?;
-        }
+    if opts.dry_run {
+        println!("dry run -- will not write files");
+        return Ok(());
+    }
+
+    for (output, rendered_file) in &rendered_files {
+        fs::write(output, rendered_file)?;
+    }
+    if !opts.disable_auto_format {
+        println!("running go fmt...");
+        process::Command::new("go")
+            .arg("fmt")
+            .args(rendered_files.iter().map(|(f, _)| f))
+            .status()?;
     }
 
     println!("done!");
