@@ -17,6 +17,8 @@
 ** define syntax; probably an option
 ** update parser
 
+* Add enums
+
 * #define support for constants or similar
 
 * Template tests? Can I do that in a non-shit way?
