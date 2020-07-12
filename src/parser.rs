@@ -7,6 +7,10 @@ use crate::types::*;
 
 pub type Error = pest::error::Error<Rule>;
 
+fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
+    Error::new_from_span(ErrorVariant::CustomError{message: msg.into()}, span)
+}
+
 #[derive(Parser)]
 #[grammar = "struct.pest"]
 struct StructParser;

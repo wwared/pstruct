@@ -22,6 +22,9 @@ struct CliOptions {
     #[options(help = "output directory", parse(from_str = "parse_path"))]
     output: Option<PathBuf>,
 
+    #[options(help = "print to stdout; useful for debugging")]
+    print_output: bool,
+
     #[options(help = "don't write any files")]
     dry_run: bool,
 
@@ -38,11 +41,7 @@ fn print_usage_and_error(error: Option<&str>) -> ! {
         println!("ERROR: {}\n", s);
     }
     println!("{}", CliOptions::usage());
-    if error.is_none() {
-        process::exit(0);
-    } else {
-        process::exit(1);
-    }
+    process::exit(error.is_none() as i32);
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
@@ -107,7 +106,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         println!("{} -> {}", file.to_str().unwrap(), output.to_str().unwrap());
         let file_contents = fs::read_to_string(file)?;
         let file = parser::parse_file(file_contents.as_str())?;
-        rendered_files.push((output, renderer::render_file(&file)));
+        let rendered_file = renderer::render_file(&file);
+        if opts.print_output {
+            println!("{}", rendered_file);
+        }
+        rendered_files.push((output, rendered_file));
         println!();
     }
 
