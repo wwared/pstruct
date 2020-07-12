@@ -19,6 +19,8 @@ impl fmt::Display for Type<'_> {
                 Type::I16             => { "int16" }
                 Type::I32             => { "int32" }
                 Type::I64             => { "int64" }
+                Type::F32             => { "float32" }
+                Type::F64             => { "float64" }
                 Type::Byte            => { "byte" }
                 Type::String          => { "string" }
                 Type::CString         => { "string" }

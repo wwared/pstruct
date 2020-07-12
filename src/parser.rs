@@ -53,6 +53,7 @@ fn parse_item_type(type_name: &str) -> Type {
     match type_name {
         "u8" => Type::U8, "u16" => Type::U16, "u32" => Type::U32, "u64" => Type::U64,
         "i8" => Type::I8, "i16" => Type::I16, "i32" => Type::I32, "i64" => Type::I64,
+        "f32" => Type::F32, "f64" => Type::F64,
         "byte" => Type::Byte, "string" => Type::String, "cstring" => Type::CString,
         _ => Type::User(type_name)
     }
