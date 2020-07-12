@@ -21,14 +21,14 @@ struct FileOptions<'a> {
 }
 
 struct ItemOptions<'a> {
-    max_array_size: Option<usize>,
-    array_size_type: Type<'a>,
+    // max_array_size: Option<usize>, // TODO bounded
+    array_size_type: Option<Type<'a>>,
 
     endian: Endian,
 }
 
-fn default_options() -> ItemOptions<'static> {
-    ItemOptions { max_array_size: None, array_size_type: Type::I32, endian: Endian::Little }
+fn default_item_options() -> ItemOptions<'static> {
+    ItemOptions { array_size_type: None, endian: Endian::Little }
 }
 
 // unwraps look spooky but the grammar says it's fine
@@ -60,7 +60,7 @@ fn parse_item_type(type_name: &str) -> Type {
 }
 
 fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
-    let mut res = default_options();
+    let mut res = default_item_options();
     assert!(pair.as_rule() == Rule::options, "expected option");
     for option in pair.into_inner() {
         assert!(option.as_rule() == Rule::option, "expected option");
@@ -69,10 +69,10 @@ fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
         let key = inner.next().unwrap().as_str();
         let value = inner.next().unwrap().as_str();
         match key {
-            "max_array_size" => {
-                let size = value.parse::<usize>().unwrap();
-                res.max_array_size = Some(size);
-            },
+            // "max_array_size" => {
+            //     let size = value.parse::<usize>().unwrap();
+            //     res.max_array_size = Some(size);
+            // }, // TODO bounded
             "array_size_type" => {
                 let kind = parse_item_type(value);
                 match kind {
@@ -81,7 +81,7 @@ fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
                     },
                     _ => {  },
                 };
-                res.array_size_type = kind;
+                res.array_size_type = Some(kind);
             },
             "endian" => {
                 res.endian = match value {
@@ -113,7 +113,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
         // eprintln!("Found options {:#?}", opts_pair);
         parse_item_options(opts_pair)?
     } else {
-        default_options()
+        default_item_options()
     };
 
     let array: Option<Array>;
@@ -128,11 +128,12 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
                 array = match arr_str.parse::<usize>() {
                     Ok(size) => Some(Array::Constant(size)),
                     Err(_) => {
-                        eprintln!("got here");
                         // find the type of previously declared variable
+                        if item_options.array_size_type.is_some() {
+                            return Err(make_error("cannot declare type for array size twice", err_span));
+                        }
                         let other_item = environment.iter().find(|i| i.name == arr_str);
                         if let Some(other_item) = other_item {
-                            eprintln!("found other item");
                             Some(Array::Variable(arr_str, other_item.kind.clone()))
                         } else {
                             return Err(make_error(format!("undeclared identifier {}", arr_str), err_span))
@@ -140,7 +141,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
                     },
                 };
             } else {
-                array = Some(Array::Unknown(item_options.array_size_type));
+                array = Some(Array::Unknown(item_options.array_size_type.unwrap_or(Type::I32)));
             }
             // eprintln!("{:?}", array);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
@@ -450,4 +451,16 @@ struct player
     assert!(res.is_ok(), "can't put count after array");
     let res = parse_file(test);
     assert!(res.is_err(), "can't put count after array");
+
+    let test = "
+struct player
+{
+    hpCount u64
+    hp [hpCount]u8  array_size_type:u8
+    sp []u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "can't declare array size twice");
+    let res = parse_file(test);
+    assert!(res.is_err(), "can't declare array size twice");
 }
