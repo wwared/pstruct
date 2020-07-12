@@ -15,15 +15,20 @@ fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
 #[grammar = "struct.pest"]
 struct StructParser;
 
-struct Options<'a> {
+struct FileOptions<'a> {
+    scope_name: &'a str,
+    endian: Endian,
+}
+
+struct ItemOptions<'a> {
     max_array_size: Option<usize>,
     array_size_type: Type<'a>,
 
     endian: Endian,
 }
 
-fn default_options() -> Options<'static> {
-    Options { max_array_size: None, array_size_type: Type::I32, endian: Endian::Little }
+fn default_options() -> ItemOptions<'static> {
+    ItemOptions { max_array_size: None, array_size_type: Type::I32, endian: Endian::Little }
 }
 
 // unwraps look spooky but the grammar says it's fine
@@ -53,7 +58,7 @@ fn parse_item_type(type_name: &str) -> Type {
     }
 }
 
-fn parse_options(pair: Pair<Rule>) -> Result<Options, Error> {
+fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
     let mut res = default_options();
     assert!(pair.as_rule() == Rule::options, "expected option");
     for option in pair.into_inner() {
@@ -105,7 +110,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
     let item_options = if let Some(opts_pair) = inner_rules.next() {
         assert!(opts_pair.as_rule() == Rule::options, "expected options");
         // eprintln!("Found options {:#?}", opts_pair);
-        parse_options(opts_pair)?
+        parse_item_options(opts_pair)?
     } else {
         default_options()
     };
@@ -148,7 +153,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
         }
     };
     if item_type == Type::CString && array.is_none() {
-        panic!("cstrings must be arrays");
+        return Err(make_error("cstrings must be arrays", err_span));
     }
     Ok(Item { name, kind: item_type, array, byte_order: Endian::Little, })
 }

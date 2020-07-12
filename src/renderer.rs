@@ -58,16 +58,24 @@ impl Type<'_> {
             }).as_str(),
         )
     }
+
+    fn is_byte(&self) -> bool {
+        match &self {
+            Type::Byte | Type::U8 => true,
+            _ => false,
+        }
+    }
 }
 
 fn render_encode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
+    let regular_arr = item.kind != Type::CString && !item.kind.is_byte();
     if let Some(arr) = &item.array {
         fomat!(
-            if item.kind != Type::CString {
+            if regular_arr {
                 match &arr {
-                    Array::Unknown(kind) => {
-                        "\t" "stream.Write" (kind.alt()) "(" (kind) "(len(" (var_name) "." (item.name) ")))" "\n"
+                    Array::Unknown(arr_kind) => {
+                        "\t" "stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) ")))" "\n"
                     }
                     _ => {}
                 }
@@ -89,14 +97,20 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size) => {
                             "\t" "stream.WriteCString(" (var_name) "." (item.name) ", " (size) ")" "\n"
                         }
-                        _ => { /*unimplemented!("cstrings with non-constant sizes not supported")*/ }
+                        Array::Variable(size_name, _) => {
+                            "\t" "stream.WriteCString(" (var_name) "." (item.name) ", uint64(" (var_name) "." (size_name) "))" "\n"
+                        }
+                        _ => { /*unimplemented!("cstrings with unknown sizes not supported")*/ }
                     }
+                }
+                Type::Byte | Type::U8 => {
+                    "\t" "stream.WriteBytes(" (var_name) "." (item.name) "[:])" "\n"
                 }
                 _ => {
                     "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx])" "\n"
                 }
             }
-            if item.kind != Type::CString {
+            if regular_arr {
                 "\t" "}" "\n"
             }
         )
@@ -116,12 +130,13 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
 
 fn render_decode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
+    let regular_arr = item.kind != Type::CString && !item.kind.is_byte();
     if let Some(arr) = &item.array {
         fomat!(
-            if item.kind != Type::CString {
+            if regular_arr {
                 match &arr {
-                    Array::Unknown(kind) => {
-                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (kind.alt()) "()" "\n"
+                    Array::Unknown(arr_kind) => {
+                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
                         "\t" "if err != nil {" "\n"
                         "\t\t" "return err" "\n"
                         "\t" "}" "\n"
@@ -150,17 +165,52 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadCString(" (size) ")" "\n"
                         }
-                        _ => { /*unimplemented!("cstrings with non-constant sizes not supported")*/ }
+                        Array::Variable(size_name, _) => {
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadCString(uint64(" (var_name) "." (size_name) "))" "\n"
+                        }
+                        _ => { /*unimplemented!("cstrings with unknown sizes not supported")*/ }
+                    }
+                }
+                Type::Byte | Type::U8 => {
+                    match &arr {
+                        Array::Constant(size) => { // need to do copy here because fixed size array
+                            "\t" (var_name) "_" (item.name) "_tmp, err := stream.ReadBytes(" (size) ")" "\n"
+                            "\t" "if err != nil {" "\n"
+                            "\t\t" "return err" "\n"
+                            "\t" "}" "\n"
+                            "\t" "copy(" (var_name) "." (item.name) "[:], " (var_name) "_" (item.name) "_tmp)" "\n"
+                        }
+                        Array::Variable(size_name, _) => {
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "." (size_name) "))" "\n"
+                        }
+                        Array::Unknown(arr_kind) => {
+                            "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
+                            "\t" "if err != nil {" "\n"
+                            "\t\t" "return err" "\n"
+                            "\t" "}" "\n"
+                            "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "_" (item.name) "_size))" "\n"
+                        }
+                    }
+                    match &arr {
+                        Array::Variable(_, _) => {}, // already did the error check in this case
+                        _ => {
+                            "\t" "if err != nil {" "\n"
+                            "\t\t" "return err" "\n"
+                            "\t" "}" "\n"
+                        }
                     }
                 }
                 _ => {
                     "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "()\n"
                 }
             }
-            "\t\t" "if err != nil {" "\n"
-            "\t\t\t" "return err" "\n"
-            "\t\t" "}" "\n"
-            if item.kind != Type::CString {
+            if !item.kind.is_byte() {
+                "\t\t" "if err != nil {" "\n"
+                "\t\t\t" "return err" "\n"
+                "\t\t" "}" "\n"
+            }
+            if regular_arr {
                 "\t" "}" "\n"
             }
         )
