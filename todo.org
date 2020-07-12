@@ -32,8 +32,5 @@
 
 * Better error checking for cstrings
 
-* Variable sized array must have count before the array
-Otherwise the encoding makes no sense
-
 * Error message when defining reserved struct items
 Need to figure out what those are first

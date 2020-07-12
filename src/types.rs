@@ -13,7 +13,7 @@ pub enum Array<'a> {
     Constant(usize),
     Unknown(Type<'a>),
     Variable(&'a str, Type<'a>),
-    Bounded(usize, Type<'a>), // TODO syntax and parser code
+    // Bounded(usize, Type<'a>), // TODO syntax and parser code
 }
 
 #[derive(Debug)]
@@ -38,6 +38,6 @@ pub struct Struct<'a> {
 
 #[derive(Debug)]
 pub struct File<'a> {
-    pub name: &'a str,
+    pub scope: &'a str,
     pub structs: Vec<Struct<'a>>,
 }

@@ -35,7 +35,7 @@ impl fmt::Display for Array<'_> {
             match &self {
                 Array::Constant(size)                    => { "[" (size) "]" }
                 Array::Unknown(_) | Array::Variable(_,_) => { "[]" }
-                _                                        => { } // TODO bounded case
+                // _                                        => { } // TODO bounded case
             }
         )
     }
@@ -69,9 +69,6 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     Array::Unknown(kind) => {
                         "\t" "stream.Write" (kind.alt()) "(" (kind) "(len(" (var_name) "." (item.name) ")))" "\n"
                     }
-                    Array::Variable(size_name, kind) => {
-                        "\t" "stream.Write" (kind.alt()) "(" (kind) "(" (var_name) "." (size_name) "))" "\n"
-                    }
                     _ => {}
                 }
                 "\t" "for idx := 0; idx < int("
@@ -79,7 +76,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size)         => { (size) }
                         Array::Unknown(_)             => { "len("(var_name)"."(item.name)")" }
                         Array::Variable(size_name, _) => { (var_name)"."(size_name) }
-                        Array::Bounded(_, _)          => { "TODO bounded case" }
+                        // Array::Bounded(_, _)          => { "TODO bounded case" }
                     }
                     "); idx++ {" "\n"
             }
@@ -103,7 +100,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                 "\t" "}" "\n"
             }
         )
-    } else {
+    } else { // not array
         fomat!(
             match &item.kind {
                 Type::User(_) => {
@@ -130,12 +127,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         "\t" "}" "\n"
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
                     }
-                    Array::Variable(size_name, kind) => {
-                        "\t" (var_name) "_" (size_name) "_tmp, err := stream.Read" (kind.alt()) "()" "\n"
-                        "\t" "if err != nil {" "\n"
-                        "\t\t" "return err" "\n"
-                        "\t" "}" "\n"
-                        "\t" (var_name) "." (size_name) " = " (item.kind) "(" (var_name) "_" (size_name) "_tmp)" "\n"
+                    Array::Variable(size_name, _) => {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
                     }
                     _ => {}
@@ -145,7 +137,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size)        => { (size) }
                         Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
                         Array::Variable(size_name,_) => { (var_name) "." (size_name) }
-                        Array::Bounded(_, _)         => { "TODO Bounded" }
+                        // Array::Bounded(_, _)         => { "TODO Bounded" }
                     }
                     "); idx++ {" "\n"
             }
@@ -172,7 +164,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                 "\t" "}" "\n"
             }
         )
-    } else {
+    } else { // not array
         fomat!(
             match &item.kind {
                 Type::User(_) => {
@@ -238,7 +230,7 @@ impl fmt::Display for Struct<'_> {
 pub fn render_file(file: &File) -> String {
     fomat!(
         (GENERATED_HEADER) "\n\n"
-        "package " (file.name.to_lowercase()) "\n\n"
+        "package " (file.scope.to_lowercase()) "\n\n"
         r#"import ps "github.com/wwared/pstruct/runtime""# "\n\n"
         for definition in &file.structs {
             (definition)

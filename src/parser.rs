@@ -27,7 +27,7 @@ fn default_options() -> Options<'static> {
 }
 
 // unwraps look spooky but the grammar says it's fine
-fn parse_definition(pair: Pair<Rule>) -> Struct {
+fn parse_definition(pair: Pair<Rule>) -> Result<Struct, Error>{
     assert!(pair.as_rule() == Rule::definition, "expected definition");
     // eprintln!("Parsing definition {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
@@ -38,9 +38,10 @@ fn parse_definition(pair: Pair<Rule>) -> Struct {
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
-        items.push(parse_item(item_pair));
+        let next_item = parse_item(item_pair, &items)?;
+        items.push(next_item);
     }
-    Struct {name, items}
+    Ok(Struct {name, items})
 }
 
 fn parse_item_type(type_name: &str) -> Type {
@@ -52,11 +53,12 @@ fn parse_item_type(type_name: &str) -> Type {
     }
 }
 
-fn parse_options(pair: Pair<Rule>) -> Options {
+fn parse_options(pair: Pair<Rule>) -> Result<Options, Error> {
     let mut res = default_options();
     assert!(pair.as_rule() == Rule::options, "expected option");
     for option in pair.into_inner() {
         assert!(option.as_rule() == Rule::option, "expected option");
+        let err_span = option.as_span();
         let mut inner = option.into_inner();
         let key = inner.next().unwrap().as_str();
         let value = inner.next().unwrap().as_str();
@@ -68,7 +70,9 @@ fn parse_options(pair: Pair<Rule>) -> Options {
             "array_size_type" => {
                 let kind = parse_item_type(value);
                 match kind {
-                    Type::Byte | Type::String | Type::User(_) => { unreachable!("array_size_type must be integer valued") },
+                    Type::Byte | Type::String | Type::User(_) => {
+                        return Err(make_error("array_size_type must be integer valued", err_span));
+                    },
                     _ => {  },
                 };
                 res.array_size_type = kind;
@@ -77,17 +81,19 @@ fn parse_options(pair: Pair<Rule>) -> Options {
                 res.endian = match value {
                     "big"    => { Endian::Big },
                     "little" => { Endian::Little },
-                    _        => { unreachable!("unknown endianness {}", value) }
+                    _        => {
+                        return Err(make_error(format!("unknown endianness {}", value), err_span))
+                    }
                 };
             },
-            _ => unreachable!("unknown key {}", key)
+            _ => return Err(make_error(format!("unknown option {}", key), err_span))
         }
 
     }
-    res
+    Ok(res)
 }
 
-fn parse_item(pair: Pair<Rule>) -> Item {
+fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item<'a>, Error> {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
     // eprintln!("Parsing item {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
@@ -99,7 +105,7 @@ fn parse_item(pair: Pair<Rule>) -> Item {
     let item_options = if let Some(opts_pair) = inner_rules.next() {
         assert!(opts_pair.as_rule() == Rule::options, "expected options");
         // eprintln!("Found options {:#?}", opts_pair);
-        parse_options(opts_pair)
+        parse_options(opts_pair)?
     } else {
         default_options()
     };
@@ -108,13 +114,24 @@ fn parse_item(pair: Pair<Rule>) -> Item {
     let item_type: Type;
     let mut type_inner = type_pair.into_inner();
     let first_elem = type_inner.next().unwrap();
+    let err_span = first_elem.as_span();
     match first_elem.as_rule() {
         Rule::array_brackets => {
             if let Some(arr_pair) = first_elem.into_inner().next() {
                 let arr_str = arr_pair.as_str();
                 array = match arr_str.parse::<usize>() {
                     Ok(size) => Some(Array::Constant(size)),
-                    Err(_) => Some(Array::Variable(arr_str, item_options.array_size_type)),
+                    Err(_) => {
+                        eprintln!("got here");
+                        // find the type of previously declared variable
+                        let other_item = environment.iter().find(|i| i.name == arr_str);
+                        if let Some(other_item) = other_item {
+                            eprintln!("found other item");
+                            Some(Array::Variable(arr_str, other_item.kind.clone()))
+                        } else {
+                            return Err(make_error(format!("undeclared identifier {}", arr_str), err_span))
+                        }
+                    },
                 };
             } else {
                 array = Some(Array::Unknown(item_options.array_size_type));
@@ -126,12 +143,14 @@ fn parse_item(pair: Pair<Rule>) -> Item {
             array = None;
             item_type = parse_item_type(first_elem.as_str());
         },
-        _ => unreachable!("expected array or item_identifier")
+        _ => {
+            return Err(make_error("expected array or item_identifier", err_span))
+        }
     };
     if item_type == Type::CString && array.is_none() {
         panic!("cstrings must be arrays");
     }
-    Item { name, kind: item_type, array, byte_order: Endian::Little, }
+    Ok(Item { name, kind: item_type, array, byte_order: Endian::Little, })
 }
 
 
@@ -145,7 +164,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     for def_pair in parse_res {
         if def_pair.as_rule() == Rule::EOI { break; }
         // eprintln!("---------");
-        let def = parse_definition(def_pair);
+        let def = parse_definition(def_pair)?;
         // eprintln!("{:#?}", def);
         for item in &def.items {
             defined_vars.insert(item.name);
@@ -158,17 +177,15 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             // check for undefined types
             if let Type::User(typ) = &item.kind {
                 if !defined_structs.contains(typ) {
-                    let message = format!("{}: Undefined type '{}'", def.name, typ);
                     let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap();
-                    return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
+                    return Err(make_error(format!("{}: undefined type {}", def.name, typ), error_span));
                 }
             }
             // check for undefined variables
             if let Some(Array::Variable(var, _)) = &item.array {
                 if !defined_vars.contains(var) {
-                    let message = format!("{}: Undefined variable '{}'", def.name, var);
                     let error_span = pest::Span::new(var, 0, var.len()).unwrap();
-                    return Err(Error::new_from_span(ErrorVariant::CustomError{message}, error_span));
+                    return Err(make_error(format!("{}: undefined variable {}", def.name, var), error_span));
                 }
             }
         }
@@ -177,7 +194,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     println!("{} definitions: {}", defined_structs.len(), names);
 
     // TODO package name
-    Ok(File { name: "main", structs: definitions })
+    Ok(File { scope: "main", structs: definitions })
 }
 
 #[cfg(test)]
@@ -414,4 +431,17 @@ can eat your newlines */  sp []u16
     assert!(res.is_err(), "newline removed by multiline comment");
     let res = parse_file(test);
     assert!(res.is_err(), "newline removed by multiline comment");
+
+    let test = "
+struct player
+{
+    hpCount u64
+    hp [hpCount]u8
+    sp [spCount]u16
+    spCount i32
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "can't put count after array");
+    let res = parse_file(test);
+    assert!(res.is_err(), "can't put count after array");
 }
