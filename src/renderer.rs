@@ -174,8 +174,8 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     }
                 }
                 Type::Byte | Type::U8 => {
-                    match &arr {
-                        Array::Constant(size) => { // need to do copy here because fixed size array
+                    match &arr { // TODO don't repeat the error check three times here
+                        Array::Constant(size) => { // need to do copy because fixed size array here
                             "\t" (var_name) "_" (item.name) "_tmp, err := stream.ReadBytes(" (size) ")" "\n"
                             "\t" "if err != nil {" "\n"
                             "\t\t" "return err" "\n"
@@ -184,6 +184,9 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         }
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "." (size_name) "))" "\n"
+                            "\t" "if err != nil {" "\n"
+                            "\t\t" "return err" "\n"
+                            "\t" "}" "\n"
                         }
                         Array::Unknown(arr_kind) => {
                             "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
@@ -192,11 +195,6 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                             "\t" "}" "\n"
                             "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "_" (item.name) "_size))" "\n"
-                        }
-                    }
-                    match &arr {
-                        Array::Variable(_, _) => {}, // already did the error check in this case
-                        _ => {
                             "\t" "if err != nil {" "\n"
                             "\t\t" "return err" "\n"
                             "\t" "}" "\n"
