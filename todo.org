@@ -6,6 +6,8 @@
 * Add enums
 
 * #define support for constants or similar
+** maybe some sort of metadata per struct as well?
+** or possibly both?
 
 * Template tests? Can I do that in a non-shit way?
 ** Some kind of full test where it runs through go test
