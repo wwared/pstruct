@@ -272,7 +272,16 @@ impl fmt::Display for Struct<'_> {
             }
             "}" "\n\n"
             "func New" (self.name) "() " (self.name) " {" "\n"
-            "\t" "return " (self.name) "{}" "\n"
+            "\t" "res := " (self.name) "{}" "\n"
+            for item in &self.items {
+                match &item.array {
+                    Some(Array::Constant(size)) => {
+                        "\t" "res." (item.name) " = make([]" (item.kind) ", " (size) ")" "\n"
+                    }
+                    _ => {}
+                }
+            }
+            "\t" "return res" "\n"
             "}" "\n\n"
             "func (" (var_name) " *" (self.name) ") Encode() []byte {" "\n"
             "\t" "stream := ps.NewStream()" "\n"
