@@ -38,12 +38,9 @@ fn default_item_options(file_options: FileOptions) -> ItemOptions<'static> {
 // unwraps look spooky but the grammar says it's fine
 fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struct, Error>{
     assert!(pair.as_rule() == Rule::definition, "expected definition");
-    // eprintln!("Parsing definition {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
-    // eprintln!("Inner rules {:?}", inner_rules);
     // struct_name -> identifier -> as_str
     let name = inner_rules.next().unwrap().into_inner().next().unwrap().as_str();
-    // eprintln!("Name {:?}", name);
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
@@ -138,10 +135,8 @@ fn parse_item_options(pair: Pair<Rule>, file_options: FileOptions) -> Result<Ite
 
 fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: FileOptions) -> Result<Item<'a>, Error> {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
-    // eprintln!("Parsing item {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
-    // eprintln!("Item name {:?}", name);
     let type_pair = inner_rules.next().unwrap();
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
 
@@ -178,7 +173,6 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
             } else {
                 array = Some(Array::Unknown(item_options.array_size_type.unwrap_or(Type::I32)));
             }
-            // eprintln!("{:?}", array);
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
         Rule::item_identifier => {
@@ -213,9 +207,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             continue;
         }
 
-        // eprintln!("---------");
         let def = parse_definition(pair, file_options.clone())?;
-        // eprintln!("{:#?}", def);
         for item in &def.items {
             defined_vars.insert(item.name);
         }
