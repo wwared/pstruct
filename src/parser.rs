@@ -160,7 +160,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
                     Err(_) => {
                         // find the type of previously declared variable
                         if item_options.array_size_type.is_some() {
-                            return Err(make_error("cannot declare type for array size twice", err_span));
+                            return Err(make_error("cannot declare type for array with known size", err_span));
                         }
                         let other_item = environment.iter().find(|i| i.name == arr_str);
                         if let Some(other_item) = other_item {
@@ -180,11 +180,11 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
             item_type = parse_item_type(first_elem.as_str());
         },
         _ => {
-            return Err(make_error("expected array or item_identifier", err_span))
+            return Err(make_error("expected array specifier or struct item", err_span))
         }
     };
     if item_type == Type::CString && array.is_none() {
-        return Err(make_error("cstrings must be arrays", err_span));
+        return Err(make_error("cstrings must be arrays with a known size", err_span));
     }
     Ok(Item { name, kind: item_type, array, byte_order: item_options.endian, })
 }
@@ -219,14 +219,14 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             // check for undefined types
             if let Type::User(typ) = &item.kind {
                 if !defined_structs.contains(typ) {
-                    let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap();
+                    let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap(); // TODO improve message?
                     return Err(make_error(format!("{}: undefined type {}", def.name, typ), error_span));
                 }
             }
             // check for undefined variables
             if let Some(Array::Variable(var, _)) = &item.array {
                 if !defined_vars.contains(var) {
-                    let error_span = pest::Span::new(var, 0, var.len()).unwrap();
+                    let error_span = pest::Span::new(var, 0, var.len()).unwrap(); // TODO improve message?
                     return Err(make_error(format!("{}: undefined variable {}", def.name, var), error_span));
                 }
             }
