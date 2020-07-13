@@ -32,14 +32,7 @@ impl fmt::Display for Type<'_> {
 
 impl fmt::Display for Array<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        wite!(
-            f,
-            match &self {
-                Array::Constant(size)                    => { "[" (size) "]" }
-                Array::Unknown(_) | Array::Variable(_,_) => { "[]" }
-                // _                                        => { } // TODO bounded case
-            }
-        )
+        write!(f, "[]")
     }
 }
 
@@ -91,9 +84,6 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "); idx++ {" "\n"
             }
             match &item.kind {
-                Type::User(_) => {
-                    "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
-                }
                 Type::CString => {
                     match &arr {
                         Array::Constant(size) => {
@@ -106,7 +96,11 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     }
                 }
                 Type::Byte | Type::U8 => {
-                    "\t" "stream.WriteBytes(" (var_name) "." (item.name) "[:])" "\n"
+                    "\t" "stream.WriteBytes(" (var_name) "." (item.name) ")" "\n"
+                }
+                // regular arrays:
+                Type::User(_) => {
+                    "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
                 }
                 _ => {
                     "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx])" "\n"
@@ -137,6 +131,12 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
         fomat!(
             if regular_arr {
                 match &arr {
+                    Array::Constant(size) => {
+                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (size) ")" "\n"
+                    }
+                    Array::Variable(size_name, _) => {
+                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
+                    }
                     Array::Unknown(arr_kind) => {
                         "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
                         "\t" "if err != nil {" "\n"
@@ -144,10 +144,6 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         "\t" "}" "\n"
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
                     }
-                    Array::Variable(size_name, _) => {
-                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
-                    }
-                    _ => {}
                 }
                 "\t" "for idx := 0; idx < int("
                     match &arr {
@@ -159,9 +155,6 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "); idx++ {" "\n"
             }
             match &item.kind {
-                Type::User(_) => {
-                    "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
-                }
                 Type::CString => {
                     match &arr {
                         Array::Constant(size) => {
@@ -174,42 +167,33 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     }
                 }
                 Type::Byte | Type::U8 => {
-                    match &arr { // TODO don't repeat the error check three times here
-                        Array::Constant(size) => { // need to do copy because fixed size array here
-                            "\t" (var_name) "_" (item.name) "_tmp, err := stream.ReadBytes(" (size) ")" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
-                            "\t" "copy(" (var_name) "." (item.name) "[:], " (var_name) "_" (item.name) "_tmp)" "\n"
+                    match &arr {
+                        Array::Constant(size) => {
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(" (size) ")" "\n"
                         }
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "." (size_name) "))" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
                         }
                         Array::Unknown(arr_kind) => {
                             "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
                             "\t" "if err != nil {" "\n"
                             "\t\t" "return err" "\n"
                             "\t" "}" "\n"
-                            "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "_" (item.name) "_size))" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
                         }
                     }
+                }
+                // regular arrays:
+                Type::User(_) => {
+                    "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
                 }
                 _ => {
                     "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "()\n"
                 }
             }
-            if !item.kind.is_byte() {
-                "\t\t" "if err != nil {" "\n"
-                "\t\t\t" "return err" "\n"
-                "\t\t" "}" "\n"
-            }
+            "\t\t" "if err != nil {" "\n"
+            "\t\t\t" "return err" "\n"
+            "\t\t" "}" "\n"
             if regular_arr {
                 "\t" "}" "\n"
             }
