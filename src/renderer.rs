@@ -274,11 +274,13 @@ impl fmt::Display for Struct<'_> {
             "func New" (self.name) "() " (self.name) " {" "\n"
             "\t" "res := " (self.name) "{}" "\n"
             for item in &self.items {
-                match &item.array {
-                    Some(Array::Constant(size)) => {
-                        "\t" "res." (item.name) " = make([]" (item.kind) ", " (size) ")" "\n"
+                if item.kind != Type::CString {
+                    match &item.array {
+                        Some(Array::Constant(size)) => {
+                            "\t" "res." (item.name) " = make([]" (item.kind) ", " (size) ")" "\n"
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
             "\t" "return res" "\n"
