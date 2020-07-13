@@ -36,6 +36,15 @@ impl fmt::Display for Array<'_> {
     }
 }
 
+impl fmt::Display for Endian {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Endian::Little => { write!(f, "binary.LittleEndian") },
+            Endian::Big    => { write!(f, "binary.BigEndian") },
+        }
+    }
+}
+
 impl Type<'_> {
     fn alt(&self) -> String {
         fn some_kind_of_uppercase_first_letter(s: &str) -> String {
@@ -54,7 +63,21 @@ impl Type<'_> {
         )
     }
 
-    fn is_byte(&self) -> bool {
+    fn write_border(&self, endian: Endian) -> String {
+        match &self {
+            Type::Byte | Type::U8 | Type::I8 => String::new(),
+            _ => fomat!(", " (endian)),
+        }
+    }
+
+    fn read_border(&self, endian: Endian) -> String {
+        match &self {
+            Type::Byte | Type::U8 | Type::I8 => String::new(),
+            _ => fomat!((endian)),
+        }
+    }
+
+    fn is_byte_for_arr(&self) -> bool {
         match &self {
             Type::Byte | Type::U8 => true,
             _ => false,
@@ -62,15 +85,31 @@ impl Type<'_> {
     }
 }
 
+impl Item<'_> {
+    fn write_border(&self) -> String {
+        match &self.kind {
+            Type::Byte | Type::U8 | Type::I8 => String::new(),
+            _ => fomat!(", " (self.byte_order)),
+        }
+    }
+
+    fn read_border(&self) -> String {
+        match &self.kind {
+            Type::Byte | Type::U8 | Type::I8 => String::new(),
+            _ => fomat!((self.byte_order)),
+        }
+    }
+}
+
 fn render_encode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
-    let regular_arr = item.kind != Type::CString && !item.kind.is_byte();
+    let regular_arr = item.kind != Type::CString && !item.kind.is_byte_for_arr();
     if let Some(arr) = &item.array {
         fomat!(
             if regular_arr {
                 match &arr {
                     Array::Unknown(arr_kind) => {
-                        "\t" "stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) ")))" "\n"
+                        "\t" "stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) "))" (arr_kind.write_border(item.byte_order)) ")" "\n"
                     }
                     _ => {}
                 }
@@ -102,7 +141,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "\t\t" (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx])" "\n"
+                    "\t\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) "[idx]" (item.write_border()) ")" "\n"
                 }
             }
             if regular_arr {
@@ -116,7 +155,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "\t" (var_name) "." (item.name) ".EncodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) ")" "\n"
+                    "\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) (item.write_border()) ")" "\n"
                 }
             }
         )
@@ -125,7 +164,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
 
 fn render_decode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
-    let regular_arr = item.kind != Type::CString && !item.kind.is_byte();
+    let regular_arr = item.kind != Type::CString && !item.kind.is_byte_for_arr();
     if let Some(arr) = &item.array {
         fomat!(
             if regular_arr {
@@ -137,7 +176,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
                     }
                     Array::Unknown(arr_kind) => {
-                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
+                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
                         "\t" "if err != nil {" "\n"
                         "\t\t" "return err" "\n"
                         "\t" "}" "\n"
@@ -173,7 +212,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "." (size_name) "))" "\n"
                         }
                         Array::Unknown(arr_kind) => {
-                            "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "()" "\n"
+                            "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
                             "\t" "if err != nil {" "\n"
                             "\t\t" "return err" "\n"
                             "\t" "}" "\n"
@@ -186,7 +225,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
                 }
                 _ => {
-                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "()\n"
+                    "\t\t" (var_name) "." (item.name) "[idx], err = stream.Read" (item_kind) "(" (item.read_border()) ")\n"
                 }
             }
             "\t\t" "if err != nil {" "\n"
@@ -203,7 +242,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "\t" "err = " (var_name) "." (item.name) ".DecodeStream(stream)" "\n"
                 }
                 _ => {
-                    "\t" (var_name) "." (item.name) ", err = stream.Read" (item_kind) "()" "\n"
+                    "\t" (var_name) "." (item.name) ", err = stream.Read" (item_kind) "(" (item.read_border()) ")" "\n"
                 }
             }
             "\t" "if err != nil {" "\n"
@@ -263,6 +302,7 @@ pub fn render_file(file: &File) -> String {
     fomat!(
         (GENERATED_HEADER) "\n\n"
         "package " (file.scope.to_lowercase()) "\n\n"
+        r#"import "encoding/binary""# "\n"
         r#"import ps "github.com/wwared/pstruct/runtime""# "\n\n"
         for definition in &file.structs {
             (definition)

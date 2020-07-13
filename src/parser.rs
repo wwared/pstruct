@@ -192,7 +192,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
     if item_type == Type::CString && array.is_none() {
         return Err(make_error("cstrings must be arrays", err_span));
     }
-    Ok(Item { name, kind: item_type, array, byte_order: Endian::Little, })
+    Ok(Item { name, kind: item_type, array, byte_order: item_options.endian, })
 }
 
 
@@ -214,7 +214,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         }
 
         // eprintln!("---------");
-        let def = parse_definition(pair, default_file_options())?;
+        let def = parse_definition(pair, file_options.clone())?;
         // eprintln!("{:#?}", def);
         for item in &def.items {
             defined_vars.insert(item.name);

@@ -22,56 +22,58 @@ type Stream struct {
 	data      []byte
 	size      uint64
 	pos       uint64
-	byteOrder binary.ByteOrder
 }
 
 func (s *Stream) WriteU8(i uint8) {
 	s.data = append(s.data, i)
 }
 
-func (s *Stream) WriteU16(i uint16) {
-	s.data = append(s.data, byte(i), byte(i>>8))
+func (s *Stream) WriteU16(i uint16, b binary.ByteOrder) {
+	s.data = append(s.data, 0, 0)
+	b.PutUint16(s.data, i)
 }
 
-func (s *Stream) WriteU32(i uint32) {
-	s.data = append(s.data, byte(i), byte(i>>8), byte(i>>16), byte(i>>24))
+func (s *Stream) WriteU32(i uint32, b binary.ByteOrder) {
+	s.data = append(s.data, 0, 0, 0, 0)
+	b.PutUint32(s.data, i)
 }
 
-func (s *Stream) WriteU64(i uint64) {
-	s.data = append(s.data, byte(i), byte(i>>8), byte(i>>16), byte(i>>24), byte(i>>32), byte(i>>40), byte(i>>48), byte(i>>56))
+func (s *Stream) WriteU64(i uint64, b binary.ByteOrder) {
+	s.data = append(s.data, 0, 0, 0, 0, 0, 0, 0, 0)
+	b.PutUint64(s.data, i)
 }
 
 func (s *Stream) WriteI8(i int8) {
 	s.data = append(s.data, byte(i))
 }
 
-func (s *Stream) WriteI16(i int16) {
-	s.data = append(s.data, byte(i), byte(i>>8))
+func (s *Stream) WriteI16(i int16, b binary.ByteOrder) {
+	s.WriteU16(uint16(i), b)
 }
 
-func (s *Stream) WriteI32(i int32) {
-	s.data = append(s.data, byte(i), byte(i>>8), byte(i>>16), byte(i>>24))
+func (s *Stream) WriteI32(i int32, b binary.ByteOrder) {
+	s.WriteU32(uint32(i), b)
 }
 
-func (s *Stream) WriteI64(i int64) {
-	s.data = append(s.data, byte(i), byte(i>>8), byte(i>>16), byte(i>>24), byte(i>>32), byte(i>>40), byte(i>>48), byte(i>>56))
+func (s *Stream) WriteI64(i int64, b binary.ByteOrder) {
+	s.WriteU64(uint64(i), b)
 }
 
-func (s *Stream) WriteF32(f float32) {
-	s.WriteU32(math.Float32bits(f))
+func (s *Stream) WriteF32(f float32, b binary.ByteOrder) {
+	s.WriteU32(math.Float32bits(f), b)
 }
 
-func (s *Stream) WriteF64(f float64) {
-	s.WriteU64(math.Float64bits(f))
+func (s *Stream) WriteF64(f float64, b binary.ByteOrder) {
+	s.WriteU64(math.Float64bits(f), b)
 }
 
-func (s *Stream) WriteString(str string) {
-	s.WriteU16(uint16(len(str)))
+func (s *Stream) WriteString(str string, b binary.ByteOrder) {
+	s.WriteU16(uint16(len(str)), b)
 	s.data = append(s.data, []byte(str)...)
 }
 
-func (s *Stream) WriteString64(str string) {
-	s.WriteU64(uint64(len(str)))
+func (s *Stream) WriteString64(str string, b binary.ByteOrder) {
+	s.WriteU64(uint64(len(str)), b)
 	s.data = append(s.data, []byte(str)...)
 }
 
@@ -104,34 +106,34 @@ func (s *Stream) ReadU8() (uint8, error) {
 	return s.data[s.pos:pos][0], nil
 }
 
-func (s *Stream) ReadU16() (uint16, error) {
+func (s *Stream) ReadU16(b binary.ByteOrder) (uint16, error) {
 	pos := s.pos + 2
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read u16 at position %d: out of bounds", s.pos)
 	}
 
-	return s.byteOrder.Uint16(s.data[s.pos:pos]), nil
+	return b.Uint16(s.data[s.pos:pos]), nil
 }
 
-func (s *Stream) ReadU32() (uint32, error) {
+func (s *Stream) ReadU32(b binary.ByteOrder) (uint32, error) {
 	pos := s.pos + 4
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read u32 at position %d: out of bounds", s.pos)
 	}
 
-	return s.byteOrder.Uint32(s.data[s.pos:pos]), nil
+	return b.Uint32(s.data[s.pos:pos]), nil
 }
 
-func (s *Stream) ReadU64() (uint64, error) {
+func (s *Stream) ReadU64(b binary.ByteOrder) (uint64, error) {
 	pos := s.pos + 8
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read u64 at position %d: out of bounds", s.pos)
 	}
 
-	return s.byteOrder.Uint64(s.data[s.pos:pos]), nil
+	return b.Uint64(s.data[s.pos:pos]), nil
 }
 
 func (s *Stream) ReadI8() (int8, error) {
@@ -144,38 +146,38 @@ func (s *Stream) ReadI8() (int8, error) {
 	return int8(s.data[s.pos:pos][0]), nil
 }
 
-func (s *Stream) ReadI16() (int16, error) {
+func (s *Stream) ReadI16(b binary.ByteOrder) (int16, error) {
 	pos := s.pos + 2
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read i16 at position %d: out of bounds", s.pos)
 	}
 
-	return int16(s.byteOrder.Uint16(s.data[s.pos:pos])), nil
+	return int16(b.Uint16(s.data[s.pos:pos])), nil
 }
 
-func (s *Stream) ReadI32() (int32, error) {
+func (s *Stream) ReadI32(b binary.ByteOrder) (int32, error) {
 	pos := s.pos + 4
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read i32 at position %d: out of bounds", s.pos)
 	}
 
-	return int32(s.byteOrder.Uint32(s.data[s.pos:pos])), nil
+	return int32(b.Uint32(s.data[s.pos:pos])), nil
 }
 
-func (s *Stream) ReadI64() (int64, error) {
+func (s *Stream) ReadI64(b binary.ByteOrder) (int64, error) {
 	pos := s.pos + 8
 	defer func() { s.pos = pos }()
 	if pos > s.size {
 		return 0, fmt.Errorf("unable to read i64 at position %d: out of bounds", s.pos)
 	}
 
-	return int64(s.byteOrder.Uint64(s.data[s.pos:pos])), nil
+	return int64(b.Uint64(s.data[s.pos:pos])), nil
 }
 
-func (s *Stream) ReadF32() (float32, error) {
-	f, err := s.ReadU32()
+func (s *Stream) ReadF32(b binary.ByteOrder) (float32, error) {
+	f, err := s.ReadU32(b)
 	if err != nil {
 		return 0, err
 	}
@@ -183,8 +185,8 @@ func (s *Stream) ReadF32() (float32, error) {
 	return math.Float32frombits(f), nil
 }
 
-func (s *Stream) ReadF64() (float64, error) {
-	f, err := s.ReadU64()
+func (s *Stream) ReadF64(b binary.ByteOrder) (float64, error) {
+	f, err := s.ReadU64(b)
 	if err != nil {
 		return 0, err
 	}
@@ -192,8 +194,8 @@ func (s *Stream) ReadF64() (float64, error) {
 	return math.Float64frombits(f), nil
 }
 
-func (s *Stream) ReadString() (string, error) {
-	i, err := s.ReadU16()
+func (s *Stream) ReadString(b binary.ByteOrder) (string, error) {
+	i, err := s.ReadU16(b)
 	if err != nil {
 		return "", fmt.Errorf("unable to read string at position %d: out of bounds", s.pos)
 	}
@@ -209,8 +211,8 @@ func (s *Stream) ReadString() (string, error) {
 	return string(s.data[s.pos:pos]), nil
 }
 
-func (s *Stream) ReadString64() (string, error) {
-	i, err := s.ReadU64()
+func (s *Stream) ReadString64(b binary.ByteOrder) (string, error) {
+	i, err := s.ReadU64(b)
 	if err != nil {
 		return "", fmt.Errorf("unable to read string64 at position %d: out of bounds", s.pos)
 	}
@@ -253,17 +255,17 @@ func (s *Stream) GetData() []byte {
 }
 
 func NewStream() *Stream {
-	return &Stream{byteOrder: binary.LittleEndian}
+	return &Stream{}
 }
 
 func NewStreamWithSize(size uint64) *Stream {
-	return &Stream{byteOrder: binary.LittleEndian, data: make([]byte, 0, size)}
+	return &Stream{data: make([]byte, 0, size)}
 }
 
 func NewStreamWithSlice(b []byte) *Stream {
-	return &Stream{byteOrder: binary.LittleEndian, data: b}
+	return &Stream{data: b}
 }
 
 func NewStreamReader(data []byte) *Stream {
-	return &Stream{data: data, size: uint64(len(data)), byteOrder: binary.LittleEndian}
+	return &Stream{data: data, size: uint64(len(data))}
 }

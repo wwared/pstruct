@@ -27,7 +27,7 @@ pub struct Item<'a> {
     pub name: &'a str,
     pub kind: Type<'a>,
     pub array: Option<Array<'a>>,
-    pub byte_order: Endian, // TODO syntax and parser code
+    pub byte_order: Endian,
 }
 
 #[derive(Debug)]

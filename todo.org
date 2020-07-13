@@ -1,9 +1,5 @@
 #+TITLE: pstruct todos
 
-* Support endianness configuration
-** DONE both per-item and global; currently only per-item options
-** TODO update runtime to use endianness properly
-
 * Allow setting array max size // bounded unknown arrays
 ** define syntax; probably an option?
 
