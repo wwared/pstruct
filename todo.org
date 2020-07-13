@@ -1,21 +1,11 @@
 #+TITLE: pstruct todos
 
-* Syntax for options; both local and global
-** DONE pest side
-** DONE make types
-** DONE make parser functions return types
-** STRT get options from file
-** use the options
-
 * Support endianness configuration
-** both per-item and global; currently only per-item options
+** DONE both per-item and global; currently only per-item options
+** TODO update runtime to use endianness properly
 
-* Allow setting array size type; has to be an int
-** in options
-
-* Allow setting array max size
-** define syntax; probably an option
-** update parser
+* Allow setting array max size // bounded unknown arrays
+** define syntax; probably an option?
 
 * Add enums
 
@@ -33,4 +23,4 @@
 * Better error checking for cstrings
 
 * Error message when defining reserved struct items
-Need to figure out what those are first
+** Need to figure out what those are first

@@ -79,7 +79,6 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size)         => { (size) }
                         Array::Unknown(_)             => { "len("(var_name)"."(item.name)")" }
                         Array::Variable(size_name, _) => { (var_name)"."(size_name) }
-                        // Array::Bounded(_, _)          => { "TODO bounded case" }
                     }
                     "); idx++ {" "\n"
             }
@@ -150,7 +149,6 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Constant(size)        => { (size) }
                         Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
                         Array::Variable(size_name,_) => { (var_name) "." (size_name) }
-                        // Array::Bounded(_, _)         => { "TODO Bounded" }
                     }
                     "); idx++ {" "\n"
             }

@@ -15,24 +15,28 @@ fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
 #[grammar = "struct.pest"]
 struct StructParser;
 
-struct FileOptions<'a> {
-    scope_name: &'a str,
+#[derive(Clone)] // TODO get rid of all the unnecessary copies somehow?
+struct FileOptions {
+    scope_name: String,
     endian: Endian,
 }
 
 struct ItemOptions<'a> {
-    // max_array_size: Option<usize>, // TODO bounded
     array_size_type: Option<Type<'a>>,
 
     endian: Endian,
 }
 
-fn default_item_options() -> ItemOptions<'static> {
-    ItemOptions { array_size_type: None, endian: Endian::Little }
+fn default_file_options() -> FileOptions {
+    FileOptions { scope_name: "main".to_owned(), endian: Endian::Little }
+}
+
+fn default_item_options(file_options: FileOptions) -> ItemOptions<'static> {
+    ItemOptions { array_size_type: None, endian: file_options.endian }
 }
 
 // unwraps look spooky but the grammar says it's fine
-fn parse_definition(pair: Pair<Rule>) -> Result<Struct, Error>{
+fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struct, Error>{
     assert!(pair.as_rule() == Rule::definition, "expected definition");
     // eprintln!("Parsing definition {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
@@ -43,7 +47,7 @@ fn parse_definition(pair: Pair<Rule>) -> Result<Struct, Error>{
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
-        let next_item = parse_item(item_pair, &items)?;
+        let next_item = parse_item(item_pair, &items, file_options.clone())?;
         items.push(next_item);
     }
     Ok(Struct {name, items})
@@ -59,15 +63,48 @@ fn parse_item_type(type_name: &str) -> Type {
     }
 }
 
-fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
-    let mut res = default_item_options();
-    assert!(pair.as_rule() == Rule::options, "expected option");
+fn parse_single_option(option: Pair<Rule>) -> (&str, &str) {
+    assert!(option.as_rule() == Rule::option, "expected option");
+    let mut inner = option.into_inner();
+    let key = inner.next().unwrap().as_str();
+    let value = inner.next().unwrap().as_str();
+    (key, value)
+}
+
+fn parse_file_options(pair: Pair<Rule>, defaults: FileOptions) -> Result<FileOptions, Error> {
+    let mut res = defaults;
+    assert!(pair.as_rule() == Rule::file_options, "expected file options");
+    let pair = pair.into_inner().next().unwrap();
+    assert!(pair.as_rule() == Rule::multiline_options || pair.as_rule() == Rule::inline_options, "unexpected option type");
+    // let multiline_options = pair.into_inner().into_inner();
     for option in pair.into_inner() {
-        assert!(option.as_rule() == Rule::option, "expected option");
         let err_span = option.as_span();
-        let mut inner = option.into_inner();
-        let key = inner.next().unwrap().as_str();
-        let value = inner.next().unwrap().as_str();
+        let (key, value) = parse_single_option(option);
+        match key {
+            "scope" => {
+                res.scope_name = value.to_owned();
+            },
+            "endian" => { // TODO put this endianness parsing in its own fn?
+                res.endian = match value {
+                    "big"    => { Endian::Big },
+                    "little" => { Endian::Little },
+                    _        => {
+                        return Err(make_error(format!("unknown endianness {}", value), err_span))
+                    }
+                };
+            }
+            _ => return Err(make_error(format!("unknown option {}", key), err_span))
+        }
+    }
+    Ok(res)
+}
+
+fn parse_item_options(pair: Pair<Rule>, file_options: FileOptions) -> Result<ItemOptions, Error> {
+    let mut res = default_item_options(file_options);
+    assert!(pair.as_rule() == Rule::inline_options, "expected options");
+    for option in pair.into_inner() {
+        let err_span = option.as_span();
+        let (key, value) = parse_single_option(option);
         match key {
             // "max_array_size" => {
             //     let size = value.parse::<usize>().unwrap();
@@ -99,7 +136,7 @@ fn parse_item_options(pair: Pair<Rule>) -> Result<ItemOptions, Error> {
     Ok(res)
 }
 
-fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item<'a>, Error> {
+fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: FileOptions) -> Result<Item<'a>, Error> {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
     // eprintln!("Parsing item {}", pair.as_str());
     let mut inner_rules = pair.into_inner();
@@ -109,11 +146,9 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>]) -> Result<Item
     assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
 
     let item_options = if let Some(opts_pair) = inner_rules.next() {
-        assert!(opts_pair.as_rule() == Rule::options, "expected options");
-        // eprintln!("Found options {:#?}", opts_pair);
-        parse_item_options(opts_pair)?
+        parse_item_options(opts_pair, file_options)?
     } else {
-        default_item_options()
+        default_item_options(file_options)
     };
 
     let array: Option<Array>;
@@ -168,10 +203,18 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     let mut defined_structs = BTreeSet::new();
     let mut defined_vars = BTreeSet::new();
 
-    for def_pair in parse_res {
-        if def_pair.as_rule() == Rule::EOI { break; }
+    let mut file_options = default_file_options();
+
+    for pair in parse_res {
+        if pair.as_rule() == Rule::EOI { break; }
+
+        if pair.as_rule() == Rule::file_options {
+            file_options = parse_file_options(pair, file_options)?;
+            continue;
+        }
+
         // eprintln!("---------");
-        let def = parse_definition(def_pair)?;
+        let def = parse_definition(pair, default_file_options())?;
         // eprintln!("{:#?}", def);
         for item in &def.items {
             defined_vars.insert(item.name);
@@ -200,8 +243,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     let names = defined_structs.iter().cloned().collect::<Vec<&str>>().join(", ");
     println!("{} definitions: {}", defined_structs.len(), names);
 
-    // TODO package name
-    Ok(File { scope: "main", structs: definitions })
+    Ok(File { scope: file_options.scope_name, structs: definitions })
 }
 
 #[cfg(test)]
@@ -463,4 +505,94 @@ struct player
     assert!(res.is_ok(), "can't declare array size twice");
     let res = parse_file(test);
     assert!(res.is_err(), "can't declare array size twice");
+
+    let test = "
+struct   player
+{
+    hp u8  endian:big
+    sp u16  endian:little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "inline options with :");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "inline options with :");
+
+    let test = "
+struct   player
+{
+    hp u8  endian big
+    sp u16  endian little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "inline options with space");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "inline options with space");
+
+    let test = "
+struct   player
+{
+    hp u8  endian big endian:little
+    sp u16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "mixed inline options");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "mixed inline options");
+
+    let test = "
+options scope test endian:big
+struct   player
+{
+    hp u8
+    sp u16 endian little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "inline file options");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "inline file options");
+
+    let test = "
+options {
+    scope test
+    endian:big
+}
+struct   player
+{
+    hp u8
+    sp u16 endian little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "multiline file options");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "multiline file options");
+
+    let test = "
+options {
+    scope test  endian:big
+}
+struct   player
+{
+    hp u8
+    sp u16 endian little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "cannot use inline file options in block");
+    let res = parse_file(test);
+    assert!(res.is_err(), "cannot use inline file options in block");
+
+    let test = "
+options {
+    scope test
+    endian:big
+}
+options scope test endian:big
+struct   player
+{
+    hp u8
+    sp u16 endian little
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_err(), "only one file option block");
+    let res = parse_file(test);
+    assert!(res.is_err(), "only one file option block");
 }

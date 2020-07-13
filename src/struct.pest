@@ -1,4 +1,4 @@
-file = _{ SOI ~ LINE* ~ (definition ~ EOL*)+ ~ EOI }
+file = _{ SOI ~ LINE* ~ (file_options ~ LINE*)? ~ (definition ~ EOL*)+ ~ EOI }
 
 definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)+ ~ LINE* ~ "}" }
 struct_name = ${ "struct" ~ WHITESPACE+ ~ item_identifier }
@@ -10,11 +10,19 @@ array_brackets  = ${ "[" ~ array? ~ "]" }
 
 identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
 
-option  = ${ identifier ~ ":" ~ identifier }
-options = ${ option ~ (WHITESPACE+ ~ option)* }
+option  = ${ identifier ~ ":" ~ identifier | identifier ~ WHITESPACE+ ~ identifier }
+inline_options = ${ option ~ (WHITESPACE+ ~ option)* }
+multiline_options = ${ WHITESPACE* ~ option ~ (LINE+ ~ WHITESPACE* ~ option)* }
+file_options = ${
+      "options" ~ WHITESPACE+ ~
+      (
+          inline_options
+        | LINE* ~ "{" ~ LINE+ ~ multiline_options ~ WHITESPACE* ~ LINE* ~ "}"
+      )
+}
 
 type_decl   = ${ array_brackets? ~ item_identifier }
-struct_item = ${ item_identifier ~ WHITESPACE+ ~ type_decl ~ (WHITESPACE+ ~ options)? }
+struct_item = ${ item_identifier ~ WHITESPACE+ ~ type_decl ~ (WHITESPACE+ ~ inline_options)? }
 
 WHITESPACE = _{ " " | "\t" }
 EOL        = _{ "\n" | ("\r" ~ "\n"?) }
