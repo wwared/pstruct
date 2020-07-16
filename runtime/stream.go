@@ -29,18 +29,21 @@ func (s *Stream) WriteU8(i uint8) {
 }
 
 func (s *Stream) WriteU16(i uint16, b binary.ByteOrder) {
+	pos := len(s.data)
 	s.data = append(s.data, 0, 0)
-	b.PutUint16(s.data, i)
+	b.PutUint16(s.data[pos:], i)
 }
 
 func (s *Stream) WriteU32(i uint32, b binary.ByteOrder) {
+	pos := len(s.data)
 	s.data = append(s.data, 0, 0, 0, 0)
-	b.PutUint32(s.data, i)
+	b.PutUint32(s.data[pos:], i)
 }
 
 func (s *Stream) WriteU64(i uint64, b binary.ByteOrder) {
+	pos := len(s.data)
 	s.data = append(s.data, 0, 0, 0, 0, 0, 0, 0, 0)
-	b.PutUint64(s.data, i)
+	b.PutUint64(s.data[pos:], i)
 }
 
 func (s *Stream) WriteI8(i int8) {
