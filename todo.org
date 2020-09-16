@@ -1,5 +1,11 @@
 #+TITLE: pstruct todos
 
+* use anyhow but still pretty print pest errors
+
+* reset s.pos after writing so you can write more than once
+
+* check if size needs to be updated in any scenario
+
 * Allow setting array max size // bounded unknown arrays
 ** define syntax; probably an option?
 
@@ -11,6 +17,28 @@
 
 * Template tests? Can I do that in a non-shit way?
 ** Some kind of full test where it runs through go test
+for this, we need to generate some test code
+either do something nuts using reflection and go to have a single test file for all possible structs
+or just generate a basic thing making random assignments, encoding and decoding and seeing if it matches
+
+** two dirs, pass and fail
+files in pass need to generate an output and go build should work on them
+files in fail will fail (duh)
+run ../pstruct{} EXE_SUFFIX with the specified files
+every run, make new directory, output into it, nuke it afterwards
+if we do the above, run go test as well
+
+
+** test mod structure
+*** something to run a full 'step' easily, whether it fails or not
+*** two folders in the test dir -> how to reference it? do i just include_bytes! the files into the tests?
+*** maybe a simple macro that generates a test function for each file found, that'd be cool
+*** not sure if i could do something like rgtest! but that runs by looking at all files in a dir, maybe if that was done at compile time?
+actually maybe i dont need that, but tbh i probably do
+i could, but then i'd need to make my own proc macro apparently? makes sense i guess?
+doesn't look too bad, i should do it
+could also just use test-generator lol
+making a proc macro using glob seems fun tho
 
 * Make code a bit more language-agnostic
 
@@ -20,5 +48,5 @@
 
 * Better error checking for cstrings
 
-* Error message when defining reserved struct items
+* Error message when defining reserved identifiers
 ** Need to figure out what those are first
