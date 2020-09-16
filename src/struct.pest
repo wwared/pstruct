@@ -1,6 +1,6 @@
 file = _{ SOI ~ LINE* ~ (file_options ~ LINE*)? ~ (definition ~ EOL*)+ ~ EOI }
 
-definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)+ ~ LINE* ~ "}" }
+definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)* ~ LINE* ~ "}" }
 struct_name = ${ "struct" ~ WHITESPACE+ ~ item_identifier }
 
 item_identifier = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }

@@ -208,6 +208,12 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         }
 
         let def = parse_definition(pair, file_options.clone())?;
+
+        if def.items.is_empty() {
+            eprintln!("Ignoring empty struct definition '{}'", def.name);
+            continue;
+        }
+
         for item in &def.items {
             defined_vars.insert(item.name);
         }
