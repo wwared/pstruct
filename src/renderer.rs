@@ -78,10 +78,7 @@ impl Type<'_> {
     }
 
     fn is_byte_for_arr(&self) -> bool {
-        match &self {
-            Type::Byte | Type::U8 => true,
-            _ => false,
-        }
+        matches!(&self, Type::Byte | Type::U8)
     }
 }
 
