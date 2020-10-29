@@ -1,10 +1,20 @@
 #+TITLE: pstruct todos
 
+* cstring with unknown size
+
+* Reader/Writer support
+
+* string with a better syntax? need to specify the length type, consider specifying a fixed size too? (i dont think it is possible right now)
+
+* remove _s from temporary identifiers because muh code style
+
 * use anyhow but still pretty print pest errors
 
 * reset s.pos after writing so you can write more than once
 
 * check if size needs to be updated in any scenario
+
+* allow specifying user types with nothing
 
 * Allow setting array max size // bounded unknown arrays
 ** define syntax; probably an option?
