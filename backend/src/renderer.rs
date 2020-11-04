@@ -64,21 +64,31 @@ impl Type<'_> {
     }
 
     fn write_border(&self, endian: Endian) -> String {
-        match &self {
-            Type::Byte | Type::U8 | Type::I8 => String::new(),
-            _ => fomat!(", " (endian)),
+        if self.is_multibyte() {
+            fomat!(", " (endian))
+        } else {
+            String::new()
         }
     }
 
     fn read_border(&self, endian: Endian) -> String {
-        match &self {
-            Type::Byte | Type::U8 | Type::I8 => String::new(),
-            _ => fomat!((endian)),
+        if self.is_multibyte() {
+            fomat!((endian))
+        } else {
+            String::new()
         }
     }
 
     fn is_byte_for_arr(&self) -> bool {
         matches!(&self, Type::Byte | Type::U8)
+    }
+
+    fn is_multibyte(&self) -> bool {
+        match &self {
+            Type::Byte | Type::U8 | Type::I8 => false,
+            Type::CString | Type::User(_) => false,
+            _ => true,
+        }
     }
 }
 
@@ -95,6 +105,29 @@ impl Item<'_> {
             Type::Byte | Type::U8 | Type::I8 => String::new(),
             _ => fomat!((self.byte_order)),
         }
+    }
+}
+
+impl File<'_> {
+    fn uses_byte_order(&self) -> bool {
+        for s in self.structs.iter() {
+            for item in s.items.iter() {
+                if item.kind.is_multibyte() {
+                    return true;
+                }
+                if let Some(arr) = &item.array {
+                    match arr {
+                        Array::Variable(_, arr_kind) | Array::Unknown(arr_kind) => {
+                            if arr_kind.is_multibyte() {
+                                return true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -326,7 +359,9 @@ pub fn render_file(file: &File) -> String {
     fomat!(
         (GENERATED_HEADER) "\n\n"
         "package " (file.scope.to_lowercase()) "\n\n"
-        r#"import "encoding/binary""# "\n"
+        if file.uses_byte_order() {
+            r#"import "encoding/binary""# "\n"
+        }
         r#"import ps "github.com/wwared/pstruct/runtime/go""# "\n\n"
         for definition in &file.structs {
             (definition)
