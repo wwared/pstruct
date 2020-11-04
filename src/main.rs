@@ -1,12 +1,7 @@
-#[macro_use]
-extern crate pest_derive;
-
-mod parser;
-mod renderer;
-mod types;
-
 use std::path::PathBuf;
 use std::{error, fmt, fs, io, process};
+
+use pstruct_backend::{parser, renderer};
 
 use gumdrop::Options;
 use walkdir::WalkDir;

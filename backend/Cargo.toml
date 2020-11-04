@@ -1,0 +1,10 @@
+[package]
+name = "pstruct_backend"
+version = "0.2.0"
+authors = ["wwared <wwared@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+pest = "2"
+pest_derive = "2"
+fomat-macros = "0.3"

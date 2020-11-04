@@ -184,7 +184,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
         }
     };
     if item_type == Type::CString && array.is_none() {
-        return Err(make_error("cstrings must be arrays with a known size", err_span));
+        return Err(make_error("cstrings must be arrays", err_span));
     }
     Ok(Item { name, kind: item_type, array, byte_order: item_options.endian, })
 }

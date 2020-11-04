@@ -127,7 +127,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" "stream.WriteCString(" (var_name) "." (item.name) ", uint64(" (var_name) "." (size_name) "))" "\n"
                         }
-                        _ => { /*unimplemented!("cstrings with unknown sizes not supported")*/ }
+                        _ => { ("cstrings with unknown sizes not supported") }
                     }
                 }
                 Type::Byte | Type::U8 => {
@@ -197,7 +197,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadCString(uint64(" (var_name) "." (size_name) "))" "\n"
                         }
-                        _ => { /*unimplemented!("cstrings with unknown sizes not supported")*/ }
+                        _ => { ("cstrings with unknown sizes not supported") }
                     }
                 }
                 Type::Byte | Type::U8 => {
