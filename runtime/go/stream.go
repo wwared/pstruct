@@ -86,6 +86,11 @@ func (s *Stream) WriteCString(str string, i uint64) {
 	s.WriteBytes(b)
 }
 
+func (s *Stream) WriteCStringUnsized(str string) {
+	s.WriteBytes([]byte(str))
+	s.data = append(s.data, 0)
+}
+
 func (s *Stream) WriteBytes(b []byte) {
 	s.data = append(s.data, b...)
 }
@@ -240,6 +245,22 @@ func (s *Stream) ReadCString(i uint64) (string, error) {
 		return string(b), nil
 	}
 	return string(b[:end]), nil
+}
+
+func (s *Stream) ReadCStringUnsized() (string, error) {
+	b, err := s.ReadU8()
+	if err != nil {
+		return "", fmt.Errorf("unable to read C unsized string at position %d: out of bounds", s.pos)
+	}
+	bytes := []byte{}
+	for b != 0 {
+		bytes = append(bytes, b)
+		b, err = s.ReadU8()
+		if err != nil {
+			return "", fmt.Errorf("unable to read C string at position %d: out of bounds", s.pos)
+		}
+	}
+	return string(bytes), nil
 }
 
 func (s *Stream) ReadBytes(i uint64) ([]byte, error) {

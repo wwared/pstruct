@@ -183,9 +183,6 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
             return Err(make_error("expected array specifier or struct item", err_span))
         }
     };
-    if item_type == Type::CString && array.is_none() {
-        return Err(make_error("cstrings must be arrays", err_span));
-    }
     Ok(Item { name, kind: item_type, array, byte_order: item_options.endian, })
 }
 

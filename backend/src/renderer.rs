@@ -45,16 +45,16 @@ impl fmt::Display for Endian {
     }
 }
 
+fn some_kind_of_uppercase_first_letter(s: &str) -> String {
+    let mut c = s.chars(); // TODO something better than this
+    match c.next() {
+        None    => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
 impl Type<'_> {
     fn alt(&self) -> String {
-        fn some_kind_of_uppercase_first_letter(s: &str) -> String {
-            let mut c = s.chars(); // TODO something better than this
-            match c.next() {
-                None    => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        }
-
         some_kind_of_uppercase_first_letter(
             fomat!(match &self {
                 Type::Byte => { [Type::U8] }
@@ -127,7 +127,11 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" "stream.WriteCString(" (var_name) "." (item.name) ", uint64(" (var_name) "." (size_name) "))" "\n"
                         }
-                        _ => { ("cstrings with unknown sizes not supported") }
+                        Array::Unknown(arr_kind) => {
+                            // don't forget + 1 for null byte
+                            "\t" "stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) ") + 1)" (arr_kind.write_border(item.byte_order)) ")" "\n"
+                            "\t" "stream.WriteCString(" (var_name) "." (item.name) ", uint64(len(" (var_name) "." (item.name) ") + 1))" "\n"
+                        }
                     }
                 }
                 Type::Byte | Type::U8 => {
@@ -151,6 +155,9 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                 Type::User(_) => {
                     "\t" (var_name) "." (item.name) ".EncodeStream(stream)" "\n"
                 }
+                Type::CString => {
+                    "\t" "stream.WriteCStringUnsized(" (var_name) "." (item.name) ")" "\n"
+                }
                 _ => {
                     "\t" "stream.Write" (item_kind) "(" (var_name) "." (item.name) (item.write_border()) ")" "\n"
                 }
@@ -173,17 +180,17 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
                     }
                     Array::Unknown(arr_kind) => {
-                        "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
+                        "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
                         "\t" "if err != nil {" "\n"
                         "\t\t" "return err" "\n"
                         "\t" "}" "\n"
-                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "_" (item.name) "_size)" "\n"
+                        "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size)" "\n"
                     }
                 }
                 "\t" "for idx := 0; idx < int("
                     match &arr {
                         Array::Constant(size)        => { (size) }
-                        Array::Unknown(_)            => { (var_name) "_" (item.name) "_size" }
+                        Array::Unknown(_)            => { (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size" }
                         Array::Variable(size_name,_) => { (var_name) "." (size_name) }
                     }
                     "); idx++ {" "\n"
@@ -197,7 +204,13 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadCString(uint64(" (var_name) "." (size_name) "))" "\n"
                         }
-                        _ => { ("cstrings with unknown sizes not supported") }
+                        Array::Unknown(arr_kind) => {
+                            "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
+                            "\t" "if err != nil {" "\n"
+                            "\t\t" "return err" "\n"
+                            "\t" "}" "\n"
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadCString(uint64(" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size))" "\n"
+                        }
                     }
                 }
                 Type::Byte | Type::U8 => {
@@ -209,11 +222,11 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "." (size_name) "))" "\n"
                         }
                         Array::Unknown(arr_kind) => {
-                            "\t" (var_name) "_" (item.name) "_size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
+                            "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
                             "\t" "if err != nil {" "\n"
                             "\t\t" "return err" "\n"
                             "\t" "}" "\n"
-                            "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) "_" (item.name) "_size))" "\n"
+                            "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(uint64(" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size))" "\n"
                         }
                     }
                 }
@@ -237,6 +250,9 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
             match &item.kind {
                 Type::User(_) => {
                     "\t" "err = " (var_name) "." (item.name) ".DecodeStream(stream)" "\n"
+                }
+                Type::CString => {
+                    "\t" (var_name) "." (item.name) ", err = stream.ReadCStringUnsized()" "\n"
                 }
                 _ => {
                     "\t" (var_name) "." (item.name) ", err = stream.Read" (item_kind) "(" (item.read_border()) ")" "\n"

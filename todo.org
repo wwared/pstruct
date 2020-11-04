@@ -1,12 +1,10 @@
 #+TITLE: pstruct todos
 
-* cstring with unknown size
+* cargo workspace to share lock/target dir
 
 * Reader/Writer support
 
 * string with a better syntax? need to specify the length type, consider specifying a fixed size too? (i dont think it is possible right now)
-
-* remove _s from temporary identifiers because muh code style
 
 * use anyhow but still pretty print pest errors
 
@@ -15,9 +13,11 @@
 * check if size needs to be updated in any scenario
 
 * allow specifying user types with nothing
+** what did i mean by this? i forgot oops
 
 * Allow setting array max size // bounded unknown arrays
 ** define syntax; probably an option?
+** something similar to the cstring stuff but for more general data types; is it useful?
 
 * Add enums
 
@@ -51,12 +51,11 @@ could also just use test-generator lol
 making a proc macro using glob seems fun tho
 
 * Make code a bit more language-agnostic
+** separated library and binary stuff so the library can eventually be used for macros as well
 
 * Dummy values (not stored in struct)
 
 * Magic values -> kinda like dummy values, but have a constraint associated
-
-* Better error checking for cstrings
 
 * Error message when defining reserved identifiers
 ** Need to figure out what those are first
