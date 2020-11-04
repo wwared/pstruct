@@ -590,4 +590,15 @@ struct   player
     assert!(res.is_err(), "only one file option block");
     let res = parse_file(test);
     assert!(res.is_err(), "only one file option block");
+
+    let test = "
+struct cstringtest {
+  s1 cstring
+  s2 []cstring
+  s3 [5]cstring
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "all kinds of cstrings supported");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "all kinds of cstrings supported");
 }
