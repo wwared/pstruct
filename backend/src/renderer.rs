@@ -311,7 +311,7 @@ pub fn render_file(file: &File) -> String {
         (GENERATED_HEADER) "\n\n"
         "package " (file.scope.to_lowercase()) "\n\n"
         r#"import "encoding/binary""# "\n"
-        r#"import ps "github.com/wwared/pstruct/runtime""# "\n\n"
+        r#"import ps "github.com/wwared/pstruct/runtime/go""# "\n\n"
         for definition in &file.structs {
             (definition)
         }
