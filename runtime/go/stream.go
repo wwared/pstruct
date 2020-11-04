@@ -8,7 +8,6 @@ import (
 	"math"
 )
 
-// TODO: big endian write support
 // TODO: streaming
 
 type Struct interface {
@@ -22,6 +21,10 @@ type Stream struct {
 	data      []byte
 	size      uint64
 	pos       uint64
+}
+
+func (s *Stream) ResetPosition() {
+	s.pos = 0
 }
 
 func (s *Stream) WriteU8(i uint8) {

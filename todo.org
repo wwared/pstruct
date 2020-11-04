@@ -8,10 +8,6 @@
 
 * use anyhow but still pretty print pest errors
 
-* reset s.pos after writing so you can write more than once
-
-* check if size needs to be updated in any scenario
-
 * allow specifying user types with nothing
 ** what did i mean by this? i forgot oops
 
