@@ -2,14 +2,13 @@
 
 * cargo workspace to share lock/target dir
 
-* Reader/Writer support
-
 * string with a better syntax? need to specify the length type, consider specifying a fixed size too? (i dont think it is possible right now)
 
 * use anyhow but still pretty print pest errors
 
 * allow specifying user types with nothing
 ** what did i mean by this? i forgot oops
+** probably external user types
 
 * Allow setting array max size // bounded unknown arrays
 ** define syntax; probably an option?
