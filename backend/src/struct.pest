@@ -1,5 +1,6 @@
-file = _{ SOI ~ LINE* ~ (file_options ~ LINE*)? ~ (definition ~ EOL*)+ ~ EOI }
+file = _{ SOI ~ LINE* ~ (file_options ~ LINE*)? ~ ((extern_definition | definition) ~ EOL*)+ ~ EOI }
 
+extern_definition = ${ "extern" ~ WHITESPACE+ ~ item_identifier ~ LINE }
 definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)* ~ LINE* ~ "}" }
 struct_name = ${ "struct" ~ WHITESPACE+ ~ item_identifier }
 

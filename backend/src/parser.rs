@@ -36,7 +36,7 @@ fn default_item_options(file_options: FileOptions) -> ItemOptions<'static> {
 }
 
 // unwraps look spooky but the grammar says it's fine
-fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struct, Error>{
+fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struct, Error> {
     assert!(pair.as_rule() == Rule::definition, "expected definition");
     let mut inner_rules = pair.into_inner();
     // struct_name -> identifier -> as_str
@@ -48,6 +48,13 @@ fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struc
         items.push(next_item);
     }
     Ok(Struct {name, items})
+}
+
+fn parse_extern_definition(pair: Pair<Rule>) -> Result<&str, Error> {
+    assert!(pair.as_rule() == Rule::extern_definition, "expected extern definition");
+    let mut inner_rules = pair.into_inner();
+    let name = inner_rules.next().unwrap().as_str();
+    Ok(name)
 }
 
 fn parse_item_type(type_name: &str) -> Type {
@@ -193,6 +200,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     let mut definitions = vec![];
     let mut defined_structs = BTreeSet::new();
     let mut defined_vars = BTreeSet::new();
+    let mut extern_types = BTreeSet::new();
 
     let mut file_options = default_file_options();
 
@@ -201,6 +209,16 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
 
         if pair.as_rule() == Rule::file_options {
             file_options = parse_file_options(pair, file_options)?;
+            continue;
+        }
+
+        if pair.as_rule() == Rule::extern_definition {
+            let name = parse_extern_definition(pair)?;
+            if defined_structs.contains(name) {
+                let error_span = pest::Span::new(&name, 0, name.len()).unwrap(); // TODO improve message?
+                return Err(make_error(format!("{}: type defined as both struct and extern", name), error_span));
+            }
+            extern_types.insert(name);
             continue;
         }
 
@@ -214,6 +232,10 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         for item in &def.items {
             defined_vars.insert(item.name);
         }
+        if extern_types.contains(def.name) {
+            let error_span = pest::Span::new(&def.name, 0, def.name.len()).unwrap(); // TODO improve message?
+            return Err(make_error(format!("{}: type defined as both struct and extern", def.name), error_span));
+        }
         defined_structs.insert(def.name);
         definitions.push(def);
     }
@@ -221,7 +243,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         for item in &def.items {
             // check for undefined types
             if let Type::User(typ) = &item.kind {
-                if !defined_structs.contains(typ) {
+                if !defined_structs.contains(typ) && !extern_types.contains(typ) {
                     let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap(); // TODO improve message?
                     return Err(make_error(format!("{}: undefined type {}", def.name, typ), error_span));
                 }
@@ -601,4 +623,29 @@ struct cstringtest {
     assert!(res.is_ok(), "all kinds of cstrings supported");
     let res = parse_file(test);
     assert!(res.is_ok(), "all kinds of cstrings supported");
+
+    let test = "
+extern Test
+
+struct Blah {
+  asdf u8
+  bsdf Test
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "extern types working");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "extern types working");
+
+    let test = "
+extern Test
+
+struct Blah {
+  asdf u8
+  bsdf Test
+  csdf Break
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "undefined types still breaking");
+    let res = parse_file(test);
+    assert!(res.is_err(), "undefined types still breaking");
 }
