@@ -107,7 +107,7 @@ fn parse_item_options(pair: Pair<Rule>, file_options: FileOptions) -> Result<Ite
             //     let size = value.parse::<usize>().unwrap();
             //     res.max_array_size = Some(size);
             // }, // TODO bounded
-            "array_size_type" => {
+            "prefix" | "array_size_type" => {
                 let kind = parse_item_type(value);
                 match kind {
                     Type::Byte | Type::String | Type::User(_) => {
