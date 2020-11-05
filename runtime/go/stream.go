@@ -23,12 +23,12 @@ func read(r io.Reader, size int) ([]byte, error) {
 }
 
 type Stream struct {
-	reader		io.Reader
-	writer		io.Writer
+	reader io.Reader
+	writer io.Writer
 }
 
 func (s *Stream) WriteU8(i uint8) error {
-	_, err := s.writer.Write([]byte{ i })
+	_, err := s.writer.Write([]byte{i})
 	return err
 }
 
@@ -54,7 +54,7 @@ func (s *Stream) WriteU64(i uint64, b binary.ByteOrder) error {
 }
 
 func (s *Stream) WriteI8(i int8) error {
-	_, err := s.writer.Write([]byte{ byte(i) })
+	_, err := s.writer.Write([]byte{byte(i)})
 	return err
 }
 
