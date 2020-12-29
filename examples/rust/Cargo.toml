@@ -1,0 +1,11 @@
+[package]
+name = "pstruct_rust_example"
+version = "0.3.0"
+authors = ["wwared"]
+edition = "2018"
+publish = false
+
+[dependencies]
+pstruct = { path = "../../pstruct" }
+pstruct_rs = { path = "../../runtime/rust" }
+pstruct_derive = { path = "../../generator/rust" }
