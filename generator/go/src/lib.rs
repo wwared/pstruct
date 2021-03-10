@@ -16,20 +16,48 @@ impl fmt::Display for NType<'_> {
         wite!(
             f,
             match &self.0 {
-                Type::U8              => { "uint8" }
-                Type::U16             => { "uint16" }
-                Type::U32             => { "uint32" }
-                Type::U64             => { "uint64" }
-                Type::I8              => { "int8" }
-                Type::I16             => { "int16" }
-                Type::I32             => { "int32" }
-                Type::I64             => { "int64" }
-                Type::F32             => { "float32" }
-                Type::F64             => { "float64" }
-                Type::Byte            => { "byte" }
-                Type::String          => { "string" }
-                Type::CString         => { "string" }
-                Type::User(user_type) => { (user_type) }
+                Type::U8 => {
+                    "uint8"
+                }
+                Type::U16 => {
+                    "uint16"
+                }
+                Type::U32 => {
+                    "uint32"
+                }
+                Type::U64 => {
+                    "uint64"
+                }
+                Type::I8 => {
+                    "int8"
+                }
+                Type::I16 => {
+                    "int16"
+                }
+                Type::I32 => {
+                    "int32"
+                }
+                Type::I64 => {
+                    "int64"
+                }
+                Type::F32 => {
+                    "float32"
+                }
+                Type::F64 => {
+                    "float64"
+                }
+                Type::Byte => {
+                    "byte"
+                }
+                Type::String => {
+                    "string"
+                }
+                Type::CString => {
+                    "string"
+                }
+                Type::User(user_type) => {
+                    (user_type)
+                }
             }
         )
     }
@@ -44,8 +72,12 @@ impl fmt::Display for NArray<'_> {
 impl fmt::Display for NEndian<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Endian::Little => { write!(f, "binary.LittleEndian") },
-            Endian::Big    => { write!(f, "binary.BigEndian") },
+            Endian::Little => {
+                write!(f, "binary.LittleEndian")
+            }
+            Endian::Big => {
+                write!(f, "binary.BigEndian")
+            }
         }
     }
 }
@@ -53,7 +85,7 @@ impl fmt::Display for NEndian<'_> {
 fn some_kind_of_uppercase_first_letter(s: &str) -> String {
     let mut c = s.chars(); // TODO something better than this
     match c.next() {
-        None    => String::new(),
+        None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
@@ -61,15 +93,20 @@ fn some_kind_of_uppercase_first_letter(s: &str) -> String {
 fn alt(ty: &Type) -> String {
     some_kind_of_uppercase_first_letter(
         fomat!(match ty {
-            Type::Byte => { [Type::U8] }
-            _          => { [ty] }
-        }).as_str(),
+            Type::Byte => {
+                [Type::U8]
+            }
+            _ => {
+                [ty]
+            }
+        })
+        .as_str(),
     )
 }
 
 fn type_write_border(ty: &Type, endian: Endian) -> String {
     if is_multibyte(ty) {
-        fomat!(", " (NEndian(&endian)))
+        fomat!(", "(NEndian(&endian)))
     } else {
         String::new()
     }
@@ -83,15 +120,17 @@ fn type_read_border(ty: &Type, endian: Endian) -> String {
     }
 }
 
-
 fn is_multibyte(ty: &Type) -> bool {
-    !matches!(ty, Type::Byte | Type::U8 | Type::I8 | Type::CString | Type::User(_))
+    !matches!(
+        ty,
+        Type::Byte | Type::U8 | Type::I8 | Type::CString | Type::User(_)
+    )
 }
 
 fn item_write_border(item: &Item) -> String {
     match item.kind {
         Type::Byte | Type::U8 | Type::I8 => String::new(),
-        _ => fomat!(", " (NEndian(&item.byte_order))),
+        _ => fomat!(", "(NEndian(&item.byte_order))),
     }
 }
 
@@ -309,7 +348,12 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
 
 impl fmt::Display for NStruct<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let var_name = self.0.name.get(0..1) .map(|x| x.to_lowercase()) .ok_or(fmt::Error)?;
+        let var_name = self
+            .0
+            .name
+            .get(0..1)
+            .map(|x| x.to_lowercase())
+            .ok_or(fmt::Error)?;
         wite!(
             f,
             "type " (self.0.name) " struct {" "\n"

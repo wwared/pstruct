@@ -1,12 +1,11 @@
-use std::{env, path, fs, io, io::Read};
+use std::{env, fs, io, io::Read, path};
 
 use pstruct::parser;
 use pstruct::types::*;
 
+use proc_macro2::*;
 use quote::quote;
 use syn::{parse_macro_input, LitStr};
-use proc_macro2::*;
-
 
 // copied from pest since i use the same strategy for getting the spec file path
 // https://github.com/pest-parser/pest/blob/51fd1d49f1041f7839975664ef71fe15c7dcaf67/generator/src/generator.rs#L166-L178
@@ -45,7 +44,7 @@ pub fn pstruct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let file_name = match path.file_name() {
         Some(file_name) => file_name,
-        None => panic!(format!("{} is not a file", path.to_string_lossy())),
+        None => panic!("{} is not a file", path.to_string_lossy()),
     };
     let file_contents = match read_file(&path) {
         Ok(file_contents) => file_contents,
@@ -53,12 +52,12 @@ pub fn pstruct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let file = match parser::parse_file(file_contents.as_str()) {
-        Ok(file) => { file },
+        Ok(file) => file,
         Err(error) => {
             let error_message = format!("{}", error);
-            return proc_macro::TokenStream::from(quote!{
+            return proc_macro::TokenStream::from(quote! {
                 compile_error!(#error_message);
-            })
+            });
         }
     };
 
@@ -130,8 +129,12 @@ fn decode_item(item: &Item) -> TokenStream {
         type_size(&item.kind, &var)
     };
     let mut decode_fn = match item.byte_order {
-        Endian::Little => { quote!(decode_le) },
-        Endian::Big    => { quote!(decode_be) },
+        Endian::Little => {
+            quote!(decode_le)
+        }
+        Endian::Big => {
+            quote!(decode_be)
+        }
     };
     if let Type::User(_) = item.kind {
         decode_fn = quote!(decode);
@@ -147,10 +150,10 @@ fn decode_item(item: &Item) -> TokenStream {
                 self.#var = String::from_utf8(tmp_buf).unwrap();
                 data = &data[(tmp_len as usize)..];
             )
-        },
+        }
         Type::CString => {
             todo!("strings")
-        },
+        }
         Type::User(_) => {
             // here we can't reliably use .size() before reading, since
             // the user type might have variable-sized elements that we haven't
@@ -160,7 +163,7 @@ fn decode_item(item: &Item) -> TokenStream {
                 self.#var.#decode_fn(data)?;
                 data = &data[#size..];
             )
-        },
+        }
         _ => {
             quote!(
                 let size = #size; // TODO: this is because #decode_fn borrows mutably, and #size might borrow immutably
@@ -173,7 +176,9 @@ fn decode_item(item: &Item) -> TokenStream {
         single_item
     } else {
         let prefix_len = match &item.array {
-            Some(Array::Constant(_)) => { quote!() },
+            Some(Array::Constant(_)) => {
+                quote!()
+            }
             Some(Array::Variable(name, _)) => {
                 let arr_len = Ident::new(name, Span::call_site());
                 // NOTE: in this case, we already decoded the length previously, so
@@ -185,7 +190,7 @@ fn decode_item(item: &Item) -> TokenStream {
                         self.#var_id.push(Default::default());
                     }
                 )
-            },
+            }
             Some(Array::Unknown(ty)) => {
                 let arr_ty = quote_type(&ty);
                 let arr_sz = type_size(&ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
@@ -199,17 +204,25 @@ fn decode_item(item: &Item) -> TokenStream {
                         self.#var_id.push(Default::default());
                     }
                 )
-            },
-            _ => { unreachable!() },
+            }
+            _ => {
+                unreachable!()
+            }
         };
         let array_size = match item.array {
-            Some(Array::Constant(sz)) => { quote!(#sz) },
-            Some(Array::Unknown(_)) => { quote!(tmp_len) },
+            Some(Array::Constant(sz)) => {
+                quote!(#sz)
+            }
+            Some(Array::Unknown(_)) => {
+                quote!(tmp_len)
+            }
             Some(Array::Variable(name, _)) => {
                 let var = Ident::new(name, Span::call_site());
                 quote!(self.#var)
-            },
-            _ => { unreachable!() },
+            }
+            _ => {
+                unreachable!()
+            }
         };
         quote!(
             #prefix_len
@@ -250,8 +263,12 @@ fn encode_item(item: &Item) -> TokenStream {
         type_size(&item.kind, &var)
     };
     let mut encode_fn = match item.byte_order {
-        Endian::Little => { quote!(encode_le) },
-        Endian::Big    => { quote!(encode_be) },
+        Endian::Little => {
+            quote!(encode_le)
+        }
+        Endian::Big => {
+            quote!(encode_be)
+        }
     };
     if let Type::User(_) = item.kind {
         encode_fn = quote!(encode_buf)
@@ -265,10 +282,10 @@ fn encode_item(item: &Item) -> TokenStream {
                 self.#var.as_bytes().to_vec().#encode_fn(&mut buf[..self.#var.len()])?;
                 buf = &mut buf[self.#var.len()..];
             )
-        },
+        }
         Type::CString => {
             todo!("strings")
-        },
+        }
         _ => {
             quote!(
                 self.#var.#encode_fn(&mut buf[..#size])?;
@@ -280,7 +297,9 @@ fn encode_item(item: &Item) -> TokenStream {
         single_item
     } else {
         let prefix_len = match &item.array {
-            Some(Array::Constant(_)) => { quote!() },
+            Some(Array::Constant(_)) => {
+                quote!()
+            }
             Some(Array::Variable(name, _)) => {
                 let arr_len = Ident::new(name, Span::call_site());
                 // NOTE: in this case, we already encoded the length previously, so
@@ -288,7 +307,7 @@ fn encode_item(item: &Item) -> TokenStream {
                 quote!(
                     assert!(self.#var_id.len() == self.#arr_len as usize, "todo improve errors");
                 )
-            },
+            }
             Some(Array::Unknown(ty)) => {
                 let arr_ty = quote_type(&ty);
                 let arr_sz = type_size(&ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
@@ -296,8 +315,10 @@ fn encode_item(item: &Item) -> TokenStream {
                     (self.#var_id.len() as #arr_ty).#encode_fn(&mut buf[..#arr_sz])?;
                     buf = &mut buf[#arr_sz..];
                 )
-            },
-            _ => { unreachable!() },
+            }
+            _ => {
+                unreachable!()
+            }
         };
         quote!(
             #prefix_len
@@ -328,31 +349,51 @@ fn encode_fn(decl: &Struct) -> TokenStream {
 
 fn type_size(ty: &Type, var: &TokenStream) -> TokenStream {
     match ty {
-        Type::U8 | Type::Byte => { quote!(1) },
-        Type::U16 => { quote!(2) },
-        Type::U32 => { quote!(4) },
-        Type::U64 => { quote!(8) },
-        Type::I8 => { quote!(1) },
-        Type::I16 => { quote!(2) },
-        Type::I32 => { quote!(4) },
-        Type::I64 => { quote!(8) },
-        Type::F32 => { quote!(4) },
-        Type::F64 => { quote!(8) },
+        Type::U8 | Type::Byte => {
+            quote!(1)
+        }
+        Type::U16 => {
+            quote!(2)
+        }
+        Type::U32 => {
+            quote!(4)
+        }
+        Type::U64 => {
+            quote!(8)
+        }
+        Type::I8 => {
+            quote!(1)
+        }
+        Type::I16 => {
+            quote!(2)
+        }
+        Type::I32 => {
+            quote!(4)
+        }
+        Type::I64 => {
+            quote!(8)
+        }
+        Type::F32 => {
+            quote!(4)
+        }
+        Type::F64 => {
+            quote!(8)
+        }
         // These are all variable sized types
         // TODO: treat them differently so it's easier to tell when a type is what
         Type::String => {
             quote!(self.#var.len())
-        },
+        }
         Type::CString => {
             // quote!(self.#var.as_bytes().len())
             // TODO: technically this is incorrect, the size is whatever is set
             // in the array field -- not sure if worth passing it in here
             // or just asserting that this never gets used
             quote!(compile_error!("OOPS LOL"))
-        },
+        }
         Type::User(_) => {
             quote!(self.#var.size())
-        },
+        }
     }
 }
 
@@ -369,8 +410,10 @@ fn item_size(item: &Item) -> TokenStream {
         Some(Array::Unknown(ty)) => {
             let arr_sz = type_size(&ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
             quote!(#arr_sz + )
-        },
-        _ => { quote!() },
+        }
+        _ => {
+            quote!()
+        }
     };
     match &item.array {
         Some(arr) => {
@@ -378,31 +421,37 @@ fn item_size(item: &Item) -> TokenStream {
             match item.kind {
                 Type::User(_) => {
                     quote!((#prefix_len self.#var.iter().map(|i| i.size()).sum::<usize>()))
-                },
+                }
                 Type::CString => {
                     todo!("strings")
-                },
+                }
                 Type::String => {
                     quote!((#prefix_len self.#var.iter().map(|i| i.len() + 2).sum::<usize>()))
-                },
-                _ => {  // Constant-sized elements
+                }
+                _ => {
+                    // Constant-sized elements
                     match arr {
-                        Array::Constant(sz) => { quote!((#sz * (#size))) },
+                        Array::Constant(sz) => {
+                            quote!((#sz * (#size)))
+                        }
                         Array::Variable(idx, _) => {
                             let idx = Ident::new(idx, Span::call_site());
                             quote!((self.#idx as usize * (#size)))
-                        },
+                        }
                         Array::Unknown(ty) => {
                             // TODO: validate if this is correct (i feel like it is)
                             let var = Ident::new(item.name, Span::call_site());
-                            let arr_sz = type_size(&ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
+                            let arr_sz =
+                                type_size(&ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
                             quote!(self.#var.len() * (#size) + #arr_sz)
-                        },
+                        }
                     }
                 }
             }
-        },
-        None => { quote!(#size) }
+        }
+        None => {
+            quote!(#size)
+        }
     }
 }
 
@@ -426,33 +475,57 @@ fn item_default(item: &Item) -> TokenStream {
                 inner = quote!(#inner, #def)
             }
             quote!([#inner])
-        },
+        }
         Some(_) => {
             quote!(vec![])
-        },
-        None => { def }
+        }
+        None => def,
     };
     quote!(#name: #def,)
 }
 
 fn quote_type(ty: &Type) -> TokenStream {
     match ty {
-        Type::U8 | Type::Byte => { quote!(u8) },
-        Type::U16 => { quote!(u16) },
-        Type::U32 => { quote!(u32) },
-        Type::U64 => { quote!(u64) },
-        Type::I8 => { quote!(i8) },
-        Type::I16 => { quote!(i16) },
-        Type::I32 => { quote!(i32) },
-        Type::I64 => { quote!(i64) },
-        Type::F32 => { quote!(f32) },
-        Type::F64 => { quote!(f64) },
-        Type::String => { quote!(String) },
-        Type::CString => { quote!(CString) },
+        Type::U8 | Type::Byte => {
+            quote!(u8)
+        }
+        Type::U16 => {
+            quote!(u16)
+        }
+        Type::U32 => {
+            quote!(u32)
+        }
+        Type::U64 => {
+            quote!(u64)
+        }
+        Type::I8 => {
+            quote!(i8)
+        }
+        Type::I16 => {
+            quote!(i16)
+        }
+        Type::I32 => {
+            quote!(i32)
+        }
+        Type::I64 => {
+            quote!(i64)
+        }
+        Type::F32 => {
+            quote!(f32)
+        }
+        Type::F64 => {
+            quote!(f64)
+        }
+        Type::String => {
+            quote!(String)
+        }
+        Type::CString => {
+            quote!(CString)
+        }
         Type::User(user_ty) => {
             let user_ty = Ident::new(user_ty, Span::call_site());
             quote!(#user_ty)
-        },
+        }
     }
 }
 
@@ -462,11 +535,11 @@ fn item_declaration(item: &Item) -> TokenStream {
     let ty = match item.array {
         Some(Array::Constant(sz)) => {
             quote!([#ty; #sz])
-        },
+        }
         Some(_) => {
             quote!(Vec<#ty>)
-        },
-        None => { ty }
+        }
+        None => ty,
     };
     quote!(pub #name: #ty,)
 }

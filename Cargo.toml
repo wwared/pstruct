@@ -1,13 +1,13 @@
 [workspace]
 
 members = [
-  "pst",
-  "pstruct",
+"pst",
+"pstruct",
 
-#"generator/rust",
-  "generator/go",
+"generator/rust",
+"generator/go",
 
-#"runtime/rust",
+"runtime/rust",
 
-#"examples/rust",
+"examples/rust",
 ]

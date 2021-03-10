@@ -29,28 +29,28 @@ impl<T: Primitive + Default + Copy, const N: usize> Primitive for [T; N] {
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_le(&data[idx*size..])?;
+            item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_be(&data[idx*size..])?;
+            item.decode_be(&data[idx * size..])?;
         }
         Ok(())
     }
@@ -63,28 +63,28 @@ impl<T: Primitive + Default + Copy> Primitive for Vec<T> {
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_le(&data[idx*size..])?;
+            item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_be(&data[idx*size..])?;
+            item.decode_be(&data[idx * size..])?;
         }
         Ok(())
     }
@@ -97,28 +97,28 @@ impl<T: Primitive + Default + Copy> Primitive for &mut [T] {
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
-            elem.encode_le(&mut buf[idx*size..])?;
+            elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_le(&data[idx*size..])?;
+            item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
         let size = std::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
-            item.decode_be(&data[idx*size..])?;
+            item.decode_be(&data[idx * size..])?;
         }
         Ok(())
     }
@@ -211,7 +211,7 @@ macro_rules! basic_primitive {
                 Ok(())
             }
         }
-    }
+    };
 }
 
 basic_primitive!(u8);

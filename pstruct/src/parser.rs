@@ -1,14 +1,21 @@
-use std::collections::BTreeSet;
-use pest::Parser;
+#![allow(clippy::upper_case_acronyms)]
+
 use pest::error::ErrorVariant;
 use pest::iterators::Pair;
+use pest::Parser;
+use std::collections::BTreeSet;
 
 use crate::types::*;
 
 pub type Error = pest::error::Error<Rule>;
 
 fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
-    Error::new_from_span(ErrorVariant::CustomError{message: msg.into()}, span)
+    Error::new_from_span(
+        ErrorVariant::CustomError {
+            message: msg.into(),
+        },
+        span,
+    )
 }
 
 #[derive(Parser)]
@@ -51,18 +58,27 @@ fn parse_definition<'a>(
     assert!(pair.as_rule() == Rule::definition, "expected definition");
     let mut inner_rules = pair.into_inner();
     // struct_name -> identifier -> as_str
-    let name = inner_rules.next().unwrap().into_inner().next().unwrap().as_str();
+    let name = inner_rules
+        .next()
+        .unwrap()
+        .into_inner()
+        .next()
+        .unwrap()
+        .as_str();
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
         let next_item = parse_item(item_pair, &items, &file_options)?;
         items.push(next_item);
     }
-    Ok(Struct {name, items})
+    Ok(Struct { name, items })
 }
 
 fn parse_extern_definition(pair: Pair<Rule>) -> Result<&str, Error> {
-    assert!(pair.as_rule() == Rule::extern_definition, "expected extern definition");
+    assert!(
+        pair.as_rule() == Rule::extern_definition,
+        "expected extern definition"
+    );
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
     Ok(name)
@@ -70,11 +86,20 @@ fn parse_extern_definition(pair: Pair<Rule>) -> Result<&str, Error> {
 
 fn parse_item_type(type_name: &str) -> Type {
     match type_name {
-        "u8" => Type::U8, "u16" => Type::U16, "u32" => Type::U32, "u64" => Type::U64,
-        "i8" => Type::I8, "i16" => Type::I16, "i32" => Type::I32, "i64" => Type::I64,
-        "f32" => Type::F32, "f64" => Type::F64,
-        "byte" => Type::Byte, "string" => Type::String, "cstring" => Type::CString,
-        _ => Type::User(type_name)
+        "u8" => Type::U8,
+        "u16" => Type::U16,
+        "u32" => Type::U32,
+        "u64" => Type::U64,
+        "i8" => Type::I8,
+        "i16" => Type::I16,
+        "i32" => Type::I32,
+        "i64" => Type::I64,
+        "f32" => Type::F32,
+        "f64" => Type::F64,
+        "byte" => Type::Byte,
+        "string" => Type::String,
+        "cstring" => Type::CString,
+        _ => Type::User(type_name),
     }
 }
 
@@ -91,9 +116,15 @@ fn parse_file_options<'a>(
     defaults: FileOptions<'a>,
 ) -> Result<FileOptions<'a>, Error> {
     let mut res = defaults;
-    assert!(pair.as_rule() == Rule::file_options, "expected file options");
+    assert!(
+        pair.as_rule() == Rule::file_options,
+        "expected file options"
+    );
     let pair = pair.into_inner().next().unwrap();
-    assert!(pair.as_rule() == Rule::multiline_options || pair.as_rule() == Rule::inline_options, "unexpected option type");
+    assert!(
+        pair.as_rule() == Rule::multiline_options || pair.as_rule() == Rule::inline_options,
+        "unexpected option type"
+    );
     // let multiline_options = pair.into_inner().into_inner();
     for option in pair.into_inner() {
         let err_span = option.as_span();
@@ -119,14 +150,17 @@ fn parse_file_options<'a>(
             "endian" => {
                 // TODO put this endianness parsing in its own fn?
                 res.endian = match value {
-                    "big"    => { Endian::Big },
-                    "little" => { Endian::Little },
-                    _        => {
-                        return Err(make_error(format!("unknown endianness {}", value), err_span))
+                    "big" => Endian::Big,
+                    "little" => Endian::Little,
+                    _ => {
+                        return Err(make_error(
+                            format!("unknown endianness {}", value),
+                            err_span,
+                        ))
                     }
                 };
             }
-            _ => return Err(make_error(format!("unknown option {}", key), err_span))
+            _ => return Err(make_error(format!("unknown option {}", key), err_span)),
         }
     }
     Ok(res)
@@ -149,26 +183,37 @@ fn parse_item_options<'a>(
             "prefix" | "array_size_type" => {
                 let kind = parse_item_type(value);
                 match kind {
-                    Type::U8 | Type::U16 | Type::U32 | Type::U64 |
-                    Type::I8 | Type::I16 | Type::I32 | Type::I64 => { /* ok */ },
+                    Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::I8
+                    | Type::I16
+                    | Type::I32
+                    | Type::I64 => { /* ok */ }
                     _ => {
-                        return Err(make_error("array_size_type must be integer valued", err_span));
-                    },
-                };
-                res.array_size_type = Some(kind);
-            },
-            "endian" => {
-                res.endian = match value {
-                    "big"    => { Endian::Big },
-                    "little" => { Endian::Little },
-                    _        => {
-                        return Err(make_error(format!("unknown endianness {}", value), err_span))
+                        return Err(make_error(
+                            "array_size_type must be integer valued",
+                            err_span,
+                        ));
                     }
                 };
-            },
-            _ => return Err(make_error(format!("unknown option {}", key), err_span))
+                res.array_size_type = Some(kind);
+            }
+            "endian" => {
+                res.endian = match value {
+                    "big" => Endian::Big,
+                    "little" => Endian::Little,
+                    _ => {
+                        return Err(make_error(
+                            format!("unknown endianness {}", value),
+                            err_span,
+                        ))
+                    }
+                };
+            }
+            _ => return Err(make_error(format!("unknown option {}", key), err_span)),
         }
-
     }
     Ok(res)
 }
@@ -182,7 +227,10 @@ fn parse_item<'a>(
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
     let type_pair = inner_rules.next().unwrap();
-    assert!(type_pair.as_rule() == Rule::type_decl, "expected type declaration");
+    assert!(
+        type_pair.as_rule() == Rule::type_decl,
+        "expected type declaration"
+    );
 
     let item_options = if let Some(opts_pair) = inner_rules.next() {
         parse_item_options(opts_pair, file_options)?
@@ -204,15 +252,21 @@ fn parse_item<'a>(
                     Err(_) => {
                         // find the type of previously declared variable
                         if item_options.array_size_type.is_some() {
-                            return Err(make_error("cannot declare type for array with known size", err_span));
+                            return Err(make_error(
+                                "cannot declare type for array with known size",
+                                err_span,
+                            ));
                         }
                         let other_item = environment.iter().find(|i| i.name == arr_str);
                         if let Some(other_item) = other_item {
                             Some(Array::Variable(arr_str, other_item.kind.clone()))
                         } else {
-                            return Err(make_error(format!("undeclared identifier {}", arr_str), err_span))
+                            return Err(make_error(
+                                format!("undeclared identifier {}", arr_str),
+                                err_span,
+                            ));
                         }
-                    },
+                    }
                 };
             } else {
                 array = Some(Array::Unknown(
@@ -222,18 +276,25 @@ fn parse_item<'a>(
                 ));
             }
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
-        },
+        }
         Rule::item_identifier => {
             array = None;
             item_type = parse_item_type(first_elem.as_str());
-        },
+        }
         _ => {
-            return Err(make_error("expected array specifier or struct item", err_span))
+            return Err(make_error(
+                "expected array specifier or struct item",
+                err_span,
+            ))
         }
     };
-    Ok(Item { name, kind: item_type, array, byte_order: item_options.endian, })
+    Ok(Item {
+        name,
+        kind: item_type,
+        array,
+        byte_order: item_options.endian,
+    })
 }
-
 
 pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     let parse_res = StructParser::parse(Rule::file, file_contents)?;
@@ -246,7 +307,9 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
     let mut file_options = default_file_options();
 
     for pair in parse_res {
-        if pair.as_rule() == Rule::EOI { break; }
+        if pair.as_rule() == Rule::EOI {
+            break;
+        }
 
         if pair.as_rule() == Rule::file_options {
             file_options = parse_file_options(pair, file_options)?;
@@ -257,7 +320,10 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             let name = parse_extern_definition(pair)?;
             if defined_structs.contains(name) {
                 let error_span = pest::Span::new(&name, 0, name.len()).unwrap(); // TODO improve message?
-                return Err(make_error(format!("{}: type defined as both struct and extern", name), error_span));
+                return Err(make_error(
+                    format!("{}: type defined as both struct and extern", name),
+                    error_span,
+                ));
             }
             extern_types.insert(name);
             continue;
@@ -275,7 +341,10 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         }
         if extern_types.contains(def.name) {
             let error_span = pest::Span::new(&def.name, 0, def.name.len()).unwrap(); // TODO improve message?
-            return Err(make_error(format!("{}: type defined as both struct and extern", def.name), error_span));
+            return Err(make_error(
+                format!("{}: type defined as both struct and extern", def.name),
+                error_span,
+            ));
         }
         defined_structs.insert(def.name);
         definitions.push(def);
@@ -286,22 +355,35 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             if let Type::User(typ) = &item.kind {
                 if !defined_structs.contains(typ) && !extern_types.contains(typ) {
                     let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap(); // TODO improve message?
-                    return Err(make_error(format!("{}: undefined type {}", def.name, typ), error_span));
+                    return Err(make_error(
+                        format!("{}: undefined type {}", def.name, typ),
+                        error_span,
+                    ));
                 }
             }
             // check for undefined variables
             if let Some(Array::Variable(var, _)) = &item.array {
                 if !defined_vars.contains(var) {
                     let error_span = pest::Span::new(var, 0, var.len()).unwrap(); // TODO improve message?
-                    return Err(make_error(format!("{}: undefined variable {}", def.name, var), error_span));
+                    return Err(make_error(
+                        format!("{}: undefined variable {}", def.name, var),
+                        error_span,
+                    ));
                 }
             }
         }
     }
-    let names = defined_structs.iter().cloned().collect::<Vec<&str>>().join(", ");
+    let names = defined_structs
+        .iter()
+        .cloned()
+        .collect::<Vec<&str>>()
+        .join(", ");
     println!("{} definitions: {}", defined_structs.len(), names);
 
-    Ok(File { scope: file_options.scope_name, structs: definitions })
+    Ok(File {
+        scope: file_options.scope_name,
+        structs: definitions,
+    })
 }
 
 #[cfg(test)]
@@ -378,9 +460,15 @@ struct player {
     hpu8 spi16
 }";
     let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_ok(), "no space between type and name - becomes single item, valid grammar");
+    assert!(
+        res.is_ok(),
+        "no space between type and name - becomes single item, valid grammar"
+    );
     let res = parse_file(test);
-    assert!(res.is_err(), "no space between type and name - becomes single item, invalid type");
+    assert!(
+        res.is_err(),
+        "no space between type and name - becomes single item, invalid type"
+    );
 
     let test = "
 struct player {
@@ -498,9 +586,15 @@ struct   player
     sp []u16
 }";
     let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_ok(), "line ending after name is ok, also spaces between struct and name");
+    assert!(
+        res.is_ok(),
+        "line ending after name is ok, also spaces between struct and name"
+    );
     let res = parse_file(test);
-    assert!(res.is_ok(), "line ending after name is ok, also spaces between struct and name");
+    assert!(
+        res.is_ok(),
+        "line ending after name is ok, also spaces between struct and name"
+    );
 
     let test = "
 /* hey look */ struct player // comments
