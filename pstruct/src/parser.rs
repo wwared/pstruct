@@ -149,10 +149,11 @@ fn parse_item_options<'a>(
             "prefix" | "array_size_type" => {
                 let kind = parse_item_type(value);
                 match kind {
-                    Type::Byte | Type::String | Type::User(_) => {
+                    Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+                    Type::I8 | Type::I16 | Type::I32 | Type::I64 => { /* ok */ },
+                    _ => {
                         return Err(make_error("array_size_type must be integer valued", err_span));
                     },
-                    _ => {  },
                 };
                 res.array_size_type = Some(kind);
             },

@@ -1,0 +1,13 @@
+[package]
+name = "pstruct"
+version = "0.3.0"
+authors = ["wwared"]
+edition = "2018"
+
+[[test]]
+name= "tests"
+path = "tests/mod.rs"
+
+[dependencies]
+pest = "2"
+pest_derive = "2"

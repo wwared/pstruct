@@ -2,7 +2,6 @@
 extern crate pest_derive;
 
 pub mod parser;
-pub mod renderer;
 pub mod types;
 
 #[cfg(test)]

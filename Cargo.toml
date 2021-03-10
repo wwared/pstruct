@@ -1,11 +1,13 @@
-[package]
-name = "pstruct"
-version = "0.2.0"
-authors = ["wwared"]
-edition = "2018"
+[workspace]
 
-[dependencies]
-pstruct_backend = { path = "backend" }
+members = [
+  "pst",
+  "pstruct",
 
-walkdir = "2"
-gumdrop = "0.8"
+#"generator/rust",
+  "generator/go",
+
+#"runtime/rust",
+
+#"examples/rust",
+]

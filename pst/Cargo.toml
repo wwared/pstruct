@@ -1,0 +1,20 @@
+[package]
+name = "pst"
+version = "0.3.0"
+authors = ["wwared"]
+edition = "2018"
+
+# TODO: make languages selectable with features
+#[features]
+#default = ["go"]
+#
+#go = []
+
+[dependencies]
+walkdir = "2"
+gumdrop = "0.8"
+
+pstruct = { path = "../pstruct" }
+
+#[target.'cfg(go)'.dependencies]
+pstruct_go = { path = "../generator/go" }
