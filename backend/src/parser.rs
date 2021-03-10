@@ -15,28 +15,39 @@ fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
 #[grammar = "struct.pest"]
 struct StructParser;
 
-#[derive(Clone)] // TODO get rid of all the unnecessary copies somehow?
-struct FileOptions {
-    scope_name: String,
+struct FileOptions<'a> {
+    array_size_type: Type<'a>,
     endian: Endian,
+
+    scope_name: String,
 }
 
 struct ItemOptions<'a> {
     array_size_type: Option<Type<'a>>,
-
     endian: Endian,
 }
 
-fn default_file_options() -> FileOptions {
-    FileOptions { scope_name: "main".to_owned(), endian: Endian::Little }
+// CLEANUP: implement Default instead of these?
+fn default_file_options() -> FileOptions<'static> {
+    FileOptions {
+        array_size_type: Type::U8,
+        scope_name: "main".to_owned(),
+        endian: Endian::Little,
+    }
 }
 
-fn default_item_options(file_options: FileOptions) -> ItemOptions<'static> {
-    ItemOptions { array_size_type: None, endian: file_options.endian }
+fn default_item_options(file_options: &FileOptions<'_>) -> ItemOptions<'static> {
+    ItemOptions {
+        array_size_type: None,
+        endian: file_options.endian,
+    }
 }
 
 // unwraps look spooky but the grammar says it's fine
-fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struct, Error> {
+fn parse_definition<'a>(
+    pair: Pair<'a, Rule>,
+    file_options: &FileOptions<'a>,
+) -> Result<Struct<'a>, Error> {
     assert!(pair.as_rule() == Rule::definition, "expected definition");
     let mut inner_rules = pair.into_inner();
     // struct_name -> identifier -> as_str
@@ -44,7 +55,7 @@ fn parse_definition(pair: Pair<Rule>, file_options: FileOptions) -> Result<Struc
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
-        let next_item = parse_item(item_pair, &items, file_options.clone())?;
+        let next_item = parse_item(item_pair, &items, &file_options)?;
         items.push(next_item);
     }
     Ok(Struct {name, items})
@@ -75,7 +86,10 @@ fn parse_single_option(option: Pair<Rule>) -> (&str, &str) {
     (key, value)
 }
 
-fn parse_file_options(pair: Pair<Rule>, defaults: FileOptions) -> Result<FileOptions, Error> {
+fn parse_file_options<'a>(
+    pair: Pair<'a, Rule>,
+    defaults: FileOptions<'a>,
+) -> Result<FileOptions<'a>, Error> {
     let mut res = defaults;
     assert!(pair.as_rule() == Rule::file_options, "expected file options");
     let pair = pair.into_inner().next().unwrap();
@@ -87,8 +101,23 @@ fn parse_file_options(pair: Pair<Rule>, defaults: FileOptions) -> Result<FileOpt
         match key {
             "scope" => {
                 res.scope_name = value.to_owned();
-            },
-            "endian" => { // TODO put this endianness parsing in its own fn?
+            }
+            "prefix" | "array_size_type" => {
+                // TODO put this type parsing in its own fn?
+                let kind = parse_item_type(value);
+                match kind {
+                    Type::Byte | Type::String | Type::User(_) => {
+                        return Err(make_error(
+                            "array_size_type must be integer valued",
+                            err_span,
+                        ));
+                    }
+                    _ => {}
+                };
+                res.array_size_type = kind;
+            }
+            "endian" => {
+                // TODO put this endianness parsing in its own fn?
                 res.endian = match value {
                     "big"    => { Endian::Big },
                     "little" => { Endian::Little },
@@ -103,8 +132,11 @@ fn parse_file_options(pair: Pair<Rule>, defaults: FileOptions) -> Result<FileOpt
     Ok(res)
 }
 
-fn parse_item_options(pair: Pair<Rule>, file_options: FileOptions) -> Result<ItemOptions, Error> {
-    let mut res = default_item_options(file_options);
+fn parse_item_options<'a>(
+    pair: Pair<'a, Rule>,
+    file_options: &FileOptions<'a>,
+) -> Result<ItemOptions<'a>, Error> {
+    let mut res = default_item_options(&file_options);
     assert!(pair.as_rule() == Rule::inline_options, "expected options");
     for option in pair.into_inner() {
         let err_span = option.as_span();
@@ -140,7 +172,11 @@ fn parse_item_options(pair: Pair<Rule>, file_options: FileOptions) -> Result<Ite
     Ok(res)
 }
 
-fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: FileOptions) -> Result<Item<'a>, Error> {
+fn parse_item<'a>(
+    pair: Pair<'a, Rule>,
+    environment: &[Item<'a>],
+    file_options: &FileOptions<'a>,
+) -> Result<Item<'a>, Error> {
     assert!(pair.as_rule() == Rule::struct_item, "expected struct item");
     let mut inner_rules = pair.into_inner();
     let name = inner_rules.next().unwrap().as_str();
@@ -150,7 +186,7 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
     let item_options = if let Some(opts_pair) = inner_rules.next() {
         parse_item_options(opts_pair, file_options)?
     } else {
-        default_item_options(file_options)
+        default_item_options(&file_options)
     };
 
     let array: Option<Array>;
@@ -178,7 +214,11 @@ fn parse_item<'a>(pair: Pair<'a, Rule>, environment: &[Item<'a>], file_options: 
                     },
                 };
             } else {
-                array = Some(Array::Unknown(item_options.array_size_type.unwrap_or(Type::I32)));
+                array = Some(Array::Unknown(
+                    item_options
+                        .array_size_type
+                        .unwrap_or_else(|| file_options.array_size_type.clone()),
+                ));
             }
             item_type = parse_item_type(type_inner.next().unwrap().as_str());
         },
@@ -222,7 +262,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             continue;
         }
 
-        let def = parse_definition(pair, file_options.clone())?;
+        let def = parse_definition(pair, &file_options)?;
 
         if def.items.is_empty() {
             eprintln!("Ignoring empty struct definition '{}'", def.name);
@@ -427,7 +467,6 @@ sp []u16 }";
     assert!(res.is_err(), "needs line endings at end of struct");
     let res = parse_file(test);
     assert!(res.is_err(), "needs line endings at end of struct");
-
 
     let test = "struct player {
     hp
@@ -648,4 +687,31 @@ struct Blah {
     assert!(res.is_ok(), "undefined types still breaking");
     let res = parse_file(test);
     assert!(res.is_err(), "undefined types still breaking");
+
+    let test = "
+struct player
+{
+    hp []u8  array_size_type:u8
+    sp []u16 prefix:i16
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "array_size_type per item");
+    let res = parse_file(test);
+    assert!(res.is_ok(), "array_size_type per item");
+
+    let test = "
+options {
+    prefix i32
+}
+struct player
+{
+    hp []u8  array_size_type:u8
+    sp []u16
+    lp []u64 prefix:u64
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "array_size_type per item and per file");
+    let res = parse_file(test);
+    dbg!(&res);
+    assert!(res.is_ok(), "array_size_type per item and per file");
 }
