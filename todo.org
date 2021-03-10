@@ -52,5 +52,10 @@ making a proc macro using glob seems fun tho
 
 * Magic values -> kinda like dummy values, but have a constraint associated
 
+* Remove encode/decode from the Go interface and put it in the runtime taking an interface Struct as parameter
+
+* Make string invalid, []string and [x]string only for cstring consistency
+existing string would become []string
+
 * Error message when defining reserved identifiers
 ** Need to figure out what those are first
