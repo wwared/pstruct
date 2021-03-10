@@ -79,10 +79,6 @@ impl Type<'_> {
         }
     }
 
-    fn is_byte_for_arr(&self) -> bool {
-        matches!(&self, Type::Byte | Type::U8)
-    }
-
     fn is_multibyte(&self) -> bool {
         match &self {
             Type::Byte | Type::U8 | Type::I8 => false,
@@ -133,19 +129,24 @@ impl File<'_> {
 
 fn render_encode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
-    let regular_arr = item.kind != Type::CString && !item.kind.is_byte_for_arr();
     if let Some(arr) = &item.array {
+        let emit_for_loop = !matches!(item.kind, Type::CString | Type::Byte | Type::U8);
         fomat!(
-            if regular_arr {
-                match &arr {
-                    Array::Unknown(arr_kind) => {
+            match &arr {
+                Array::Unknown(arr_kind) => {
+                    if item.kind == Type::CString {
+                        // don't forget + 1 for null byte in unsized cstrings
+                        "\t" "err = stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) ") + 1)" (arr_kind.write_border(item.byte_order)) ")" "\n"
+                    } else {
                         "\t" "err = stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) "))" (arr_kind.write_border(item.byte_order)) ")" "\n"
-                        "\t" "if err != nil {" "\n"
-                        "\t\t" "return err" "\n"
-                        "\t" "}" "\n"
                     }
-                    _ => {}
+                    "\t" "if err != nil {" "\n"
+                    "\t\t" "return err" "\n"
+                    "\t" "}" "\n"
                 }
+                _ => {}
+            }
+            if emit_for_loop {
                 "\t" "for idx := 0; idx < int("
                     match &arr {
                         Array::Constant(size)         => { (size) }
@@ -155,6 +156,7 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                     "); idx++ {" "\n"
             }
             match &item.kind {
+                // these types have specialized array functions
                 Type::CString => {
                     match &arr {
                         Array::Constant(size) => {
@@ -163,12 +165,8 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" "err = stream.WriteCString(" (var_name) "." (item.name) ", int(" (var_name) "." (size_name) "))" "\n"
                         }
-                        Array::Unknown(arr_kind) => {
+                        Array::Unknown(_) => {
                             // don't forget + 1 for null byte
-                            "\t" "err = stream.Write" (arr_kind.alt()) "(" (arr_kind) "(len(" (var_name) "." (item.name) ") + 1)" (arr_kind.write_border(item.byte_order)) ")" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
                             "\t" "err = stream.WriteCString(" (var_name) "." (item.name) ", int(len(" (var_name) "." (item.name) ") + 1))" "\n"
                         }
                     }
@@ -176,7 +174,8 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
                 Type::Byte | Type::U8 => {
                     "\t" "err = stream.WriteBytes(" (var_name) "." (item.name) ")" "\n"
                 }
-                // regular arrays:
+
+                // regular arrays, inside for loop:
                 Type::User(_) => {
                     "\t\t" "err = " (var_name) "." (item.name) "[idx].EncodeStream(stream)" "\n"
                 }
@@ -187,11 +186,12 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
             "\t\t" "if err != nil {" "\n"
             "\t\t\t" "return err" "\n"
             "\t\t" "}" "\n"
-            if regular_arr {
+            if emit_for_loop {
                 "\t" "}" "\n"
             }
         )
-    } else { // not array
+    } else {
+        // not array
         fomat!(
             match &item.kind {
                 Type::User(_) => {
@@ -213,25 +213,31 @@ fn render_encode_item(item: &Item, var_name: &str) -> String {
 
 fn render_decode_item(item: &Item, var_name: &str) -> String {
     let item_kind = &item.kind.alt();
-    let regular_arr = item.kind != Type::CString && !item.kind.is_byte_for_arr();
     if let Some(arr) = &item.array {
+        let emit_for_loop = !matches!(item.kind, Type::CString | Type::Byte | Type::U8);
         fomat!(
-            if regular_arr {
-                match &arr {
-                    Array::Constant(size) => {
+            match &arr {
+                Array::Constant(size) => {
+                    if emit_for_loop {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (size) ")" "\n"
                     }
-                    Array::Variable(size_name, _) => {
+                }
+                Array::Variable(size_name, _) => {
+                    if emit_for_loop {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) "." (size_name) ")" "\n"
                     }
-                    Array::Unknown(arr_kind) => {
-                        "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
-                        "\t" "if err != nil {" "\n"
-                        "\t\t" "return err" "\n"
-                        "\t" "}" "\n"
+                }
+                Array::Unknown(arr_kind) => {
+                    "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
+                    "\t" "if err != nil {" "\n"
+                    "\t\t" "return err" "\n"
+                    "\t" "}" "\n"
+                    if emit_for_loop {
                         "\t" (var_name) "." (item.name) " = make([]" (item.kind) ", " (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size)" "\n"
                     }
                 }
+            }
+            if emit_for_loop {
                 "\t" "for idx := 0; idx < int("
                     match &arr {
                         Array::Constant(size)        => { (size) }
@@ -241,6 +247,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                     "); idx++ {" "\n"
             }
             match &item.kind {
+                // these types have specialized array functions
                 Type::CString => {
                     match &arr {
                         Array::Constant(size) => {
@@ -249,11 +256,7 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadCString(int(" (var_name) "." (size_name) "))" "\n"
                         }
-                        Array::Unknown(arr_kind) => {
-                            "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
+                        Array::Unknown(_) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadCString(int(" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size))" "\n"
                         }
                     }
@@ -266,16 +269,13 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
                         Array::Variable(size_name, _) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(int(" (var_name) "." (size_name) "))" "\n"
                         }
-                        Array::Unknown(arr_kind) => {
-                            "\t" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size, err := stream.Read" (arr_kind.alt()) "(" (arr_kind.read_border(item.byte_order)) ")" "\n"
-                            "\t" "if err != nil {" "\n"
-                            "\t\t" "return err" "\n"
-                            "\t" "}" "\n"
+                        Array::Unknown(_) => {
                             "\t" (var_name) "." (item.name) ", err = stream.ReadBytes(int(" (var_name) (some_kind_of_uppercase_first_letter(item.name)) "Size))" "\n"
                         }
                     }
                 }
-                // regular arrays:
+
+                // regular arrays, inside for loop:
                 Type::User(_) => {
                     "\t\terr = " (var_name) "." (item.name) "[idx].DecodeStream(stream)\n"
                 }
@@ -286,11 +286,12 @@ fn render_decode_item(item: &Item, var_name: &str) -> String {
             "\t\t" "if err != nil {" "\n"
             "\t\t\t" "return err" "\n"
             "\t\t" "}" "\n"
-            if regular_arr {
+            if emit_for_loop {
                 "\t" "}" "\n"
             }
         )
-    } else { // not array
+    } else {
+        // not array
         fomat!(
             match &item.kind {
                 Type::User(_) => {
