@@ -30,11 +30,13 @@ struct FileOptions<'a> {
     endian: Endian,
 
     scope_name: String,
+    raw_imports: Vec<&'a str>,
 }
 
 struct ItemOptions<'a> {
     array_size_type: Option<Type<'a>>,
     endian: Endian,
+    type_alias: Option<&'a str>,
 }
 
 // CLEANUP: implement Default instead of these?
@@ -43,6 +45,7 @@ fn default_file_options() -> FileOptions<'static> {
         array_size_type: Type::U8,
         scope_name: "main".to_owned(),
         endian: Endian::Little,
+        raw_imports: vec![],
     }
 }
 
@@ -50,6 +53,7 @@ fn default_item_options(file_options: &FileOptions<'_>) -> ItemOptions<'static> 
     ItemOptions {
         array_size_type: None,
         endian: file_options.endian,
+        type_alias: None,
     }
 }
 
@@ -163,6 +167,9 @@ fn parse_file_options<'a>(
                     }
                 };
             }
+            "import" => {
+                res.raw_imports.push(value);
+            }
             _ => return Err(make_error(format!("unknown option {}", key), err_span)),
         }
     }
@@ -214,6 +221,9 @@ fn parse_item_options<'a>(
                         ))
                     }
                 };
+            }
+            "alias" => {
+                res.type_alias = Some(value);
             }
             _ => return Err(make_error(format!("unknown option {}", key), err_span)),
         }
@@ -296,6 +306,7 @@ fn parse_item<'a>(
         kind: item_type,
         array,
         byte_order: item_options.endian,
+        type_alias: item_options.type_alias,
     })
 }
 
@@ -385,6 +396,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
 
     Ok(File {
         scope: file_options.scope_name,
+        raw_imports: file_options.raw_imports,
         structs: definitions,
     })
 }
@@ -730,9 +742,9 @@ struct   player
     sp u16 endian little
 }";
     let res = StructParser::parse(Rule::file, test);
-    assert!(res.is_err(), "cannot use inline file options in block");
+    assert!(res.is_ok(), "can have multiple options in one line");
     let res = parse_file(test);
-    assert!(res.is_err(), "cannot use inline file options in block");
+    assert!(res.is_ok(), "can have multiple options in one line");
 
     let test = "
 options {

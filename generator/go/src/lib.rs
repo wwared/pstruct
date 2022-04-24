@@ -390,6 +390,9 @@ pub fn render_file(file: &File) -> String {
     fomat!(
         (GENERATED_HEADER) "\n\n"
         "package " (file.scope.to_lowercase()) "\n\n"
+        for raw_import in &file.raw_imports {
+            "import \"" (raw_import) "\"\n"
+        }
         r#"import "bytes""# "\n"
         if file_uses_byte_order(file) {
             r#"import "encoding/binary""# "\n"

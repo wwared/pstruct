@@ -35,6 +35,7 @@ pub struct Item<'a> {
     pub kind: Type<'a>,
     pub array: Option<Array<'a>>,
     pub byte_order: Endian,
+    pub type_alias: Option<&'a str>,
 }
 
 #[derive(Debug)]
@@ -46,5 +47,6 @@ pub struct Struct<'a> {
 #[derive(Debug)]
 pub struct File<'a> {
     pub scope: String,
+    pub raw_imports: Vec<&'a str>,
     pub structs: Vec<Struct<'a>>,
 }

@@ -9,11 +9,11 @@ item_identifier = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
 array           = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | item_identifier }
 array_brackets  = ${ "[" ~ array? ~ "]" }
 
-identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
+identifier = @{ (ASCII_ALPHANUMERIC | "_" | ".")+ }
 
 option            = ${ identifier ~ ":" ~ identifier | identifier ~ WHITESPACE+ ~ identifier }
 inline_options    = ${ option ~ (WHITESPACE+ ~ option)* }
-multiline_options = ${ WHITESPACE* ~ option ~ (LINE+ ~ WHITESPACE* ~ option)* }
+multiline_options = ${ WHITESPACE* ~ option ~ (LINE* ~ WHITESPACE* ~ option)* }
 file_options      = ${
       "options" ~ WHITESPACE+ ~
       (
