@@ -2,7 +2,7 @@
 name = "pst"
 version = "0.3.0"
 authors = ["wwared"]
-edition = "2018"
+edition = "2021"
 
 # TODO: make languages selectable with features
 #[features]
@@ -16,5 +16,5 @@ gumdrop = "0.8"
 
 pstruct = { path = "../pstruct" }
 
-#[target.'cfg(go)'.dependencies]
 pstruct_go = { path = "../generator/go" }
+pstruct_rust = { path = "../generator/rust" }

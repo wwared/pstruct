@@ -2,7 +2,7 @@
 name = "pstruct"
 version = "0.3.0"
 authors = ["wwared"]
-edition = "2018"
+edition = "2021"
 
 [[test]]
 name= "tests"

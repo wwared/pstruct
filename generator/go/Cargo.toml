@@ -2,7 +2,7 @@
 name = "pstruct_go"
 version = "0.3.0"
 authors = ["wwared"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 fomat-macros = "0.3.1"

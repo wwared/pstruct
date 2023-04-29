@@ -1,8 +1,13 @@
-use pstruct_derive::pstruct;
+// use pstruct_derive::pstruct;
 
-pstruct!("test.zs");
+// pstruct!("test.zs");
+
+mod test;
+use pstruct_rs::Pstruct;
+use test::*;
 
 fn main() {
+    use std::ffi::CString;
     let test = pstruct::Test {
         a: 1,
         b: 2,
@@ -16,6 +21,7 @@ fn main() {
         j: 6.9,
         k: 4.2,
         l: "AAAAA".to_string(),
+        m: CString::new("YAAAY").unwrap(),
         n: pstruct::Wow {
             amazing: vec![0xCA, 0xFE, 0xF0, 0x0D],
         },
@@ -42,11 +48,12 @@ fn main() {
             },
         ],
         y: vec![0xff, 0xaa, 0xbb],
-        z: vec!["OK".to_string(), "VERY".to_string(), "COOL".to_string()],
+        z: CString::new("OK").unwrap(),
     };
     println!("{:#?}", test);
+    println!("Size: {}", test.size());
     let encoded = test.encode().unwrap();
-    println!("Size: {}\n{:x?}", test.size(), encoded);
+    println!("{:x?}", encoded);
     let decoded = pstruct::Test::decode_new(&encoded).unwrap();
     println!("{:#?}", decoded);
 }

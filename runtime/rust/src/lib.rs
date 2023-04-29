@@ -124,53 +124,6 @@ impl<T: Primitive + Default + Copy> Primitive for &mut [T] {
     }
 }
 
-// pub type BoundString = (String, usize);
-// impl Primitive for BoundString {
-//     fn size(&self) -> usize {
-//         self.1
-//     }
-
-//     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-//         todo!()
-//     }
-// }
-
-// use std::ffi::CString;
-// pub type BoundCString = (std::ffi::CString, usize); // a cstring and a maximum size
-// impl Primitive for BoundCString {
-//     fn size(&self) -> usize {
-//         self.1
-//     }
-
-//     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-//         todo!()
-//     }
-
-//     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-//         todo!()
-//     }
-// }
-
 macro_rules! basic_primitive {
     ($ty:ty) => {
         impl Primitive for $ty {
@@ -237,5 +190,7 @@ mod test {
         let mut y: u64 = 0;
         y.decode_le(&buf).unwrap();
         assert_eq!(y, x, "u64 decode_le");
+
+        // TODO: generate per primitive tests above instead
     }
 }

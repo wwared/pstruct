@@ -6,6 +6,10 @@ edition = "2018"
 publish = false
 
 [dependencies]
-pstruct = { path = "../../pstruct" }
 pstruct_rs = { path = "../../runtime/rust" }
-pstruct_derive = { path = "../../generator/rust" }
+
+[build-dependencies]
+# only necessary if you want to call it from build.rs; alternatively just call the binary instead
+# see build.rs for more information
+# pstruct = { path = "../../pstruct" }
+# pstruct_rust = { path = "../../generator/rust" }

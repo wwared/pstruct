@@ -12,7 +12,7 @@ struct Test {
        j    f32
        k    f64
        l    string
-//       m    [40]cstring
+       m    [40]cstring
        n    Wow
        o    [16]u8
        u    [3]string
@@ -20,8 +20,8 @@ struct Test {
        w    [g]byte
        x    [c]Wow
        y    []byte
-       z    []string
-       //z    []cstring
+       //z    []string
+       z    []cstring
 }
 
 struct Wow {

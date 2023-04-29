@@ -113,7 +113,7 @@ fn file_uses_byte_order(file: &File) -> bool {
             if let Some(arr) = &item.array {
                 match arr {
                     Array::Variable(_, arr_kind) | Array::Unknown(arr_kind) => {
-                        if is_multibyte(&arr_kind) {
+                        if is_multibyte(arr_kind) {
                             return true;
                         }
                     }
@@ -391,7 +391,7 @@ pub fn render_file(file: &File) -> String {
         (GENERATED_HEADER) "\n\n"
         "package " (file.scope.to_lowercase()) "\n\n"
         r#"import "bytes""# "\n"
-        if file_uses_byte_order(&file) {
+        if file_uses_byte_order(file) {
             r#"import "encoding/binary""# "\n"
         }
         r#"import ps "github.com/wwared/pstruct/runtime/go""# "\n\n"

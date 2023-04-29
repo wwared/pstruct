@@ -7,6 +7,9 @@ use std::collections::BTreeSet;
 
 use crate::types::*;
 
+// TODO: cstrings (and maybe arrays too?) do a "double read" of fields; this feels wrong, it should be read once earlier in the loop
+// I'm not sure that I'm handling this right for regular arrays like [x]u8
+
 pub type Error = pest::error::Error<Rule>;
 
 fn make_error<S: Into<String>>(msg: S, span: pest::Span) -> Error {
@@ -68,7 +71,7 @@ fn parse_definition<'a>(
     let mut items: Vec<Item> = vec![];
     // all other rules are for items
     for item_pair in inner_rules {
-        let next_item = parse_item(item_pair, &items, &file_options)?;
+        let next_item = parse_item(item_pair, &items, file_options)?;
         items.push(next_item);
     }
     Ok(Struct { name, items })
@@ -170,7 +173,7 @@ fn parse_item_options<'a>(
     pair: Pair<'a, Rule>,
     file_options: &FileOptions<'a>,
 ) -> Result<ItemOptions<'a>, Error> {
-    let mut res = default_item_options(&file_options);
+    let mut res = default_item_options(file_options);
     assert!(pair.as_rule() == Rule::inline_options, "expected options");
     for option in pair.into_inner() {
         let err_span = option.as_span();
@@ -235,7 +238,7 @@ fn parse_item<'a>(
     let item_options = if let Some(opts_pair) = inner_rules.next() {
         parse_item_options(opts_pair, file_options)?
     } else {
-        default_item_options(&file_options)
+        default_item_options(file_options)
     };
 
     let array: Option<Array>;
@@ -319,7 +322,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
         if pair.as_rule() == Rule::extern_definition {
             let name = parse_extern_definition(pair)?;
             if defined_structs.contains(name) {
-                let error_span = pest::Span::new(&name, 0, name.len()).unwrap(); // TODO improve message?
+                let error_span = pest::Span::new(name, 0, name.len()).unwrap(); // TODO improve message?
                 return Err(make_error(
                     format!("{}: type defined as both struct and extern", name),
                     error_span,
@@ -340,7 +343,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             defined_vars.insert(item.name);
         }
         if extern_types.contains(def.name) {
-            let error_span = pest::Span::new(&def.name, 0, def.name.len()).unwrap(); // TODO improve message?
+            let error_span = pest::Span::new(def.name, 0, def.name.len()).unwrap(); // TODO improve message?
             return Err(make_error(
                 format!("{}: type defined as both struct and extern", def.name),
                 error_span,
@@ -354,7 +357,7 @@ pub fn parse_file(file_contents: &str) -> Result<File, Error> {
             // check for undefined types
             if let Type::User(typ) = &item.kind {
                 if !defined_structs.contains(typ) && !extern_types.contains(typ) {
-                    let error_span = pest::Span::new(&typ, 0, typ.len()).unwrap(); // TODO improve message?
+                    let error_span = pest::Span::new(typ, 0, typ.len()).unwrap(); // TODO improve message?
                     return Err(make_error(
                         format!("{}: undefined type {}", def.name, typ),
                         error_span,

@@ -1,22 +1,15 @@
 [package]
-name = "pstruct_derive"
+name = "pstruct_rust"
 version = "0.3.0"
 authors = ["wwared"]
-edition = "2018"
-
-[lib]
-proc-macro = true
+edition = "2021"
 
 [[test]]
 name= "tests"
 path = "tests/mod.rs"
 
 [dependencies]
-proc-macro2 = "1.0.24"
 quote = "1.0.7"
-syn = "1.0.54"
+proc-macro2 = "1"
 
 pstruct = { path = "../../pstruct" }
-
-[dev-dependencies]
-trybuild = "1.0.35"
