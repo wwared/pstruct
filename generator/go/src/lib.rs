@@ -321,16 +321,20 @@ impl fmt::Display for GoStruct<'_> {
             f,
             "type " (self.0.name) " struct {" "\n"
             for item in &self.0.items {
-                match &item.array {
-                    Some(_) => {
-                        if item.kind == Type::CString {
-                            "\t" (item.name) "\t" (GoType(&item.kind)) "\n"
-                        } else {
-                            "\t" (item.name) "\t" "[]" (GoType(&item.kind)) "\n"
+                if let Some(type_alias) = item.type_alias {
+                    "\t" (item.name) "\t" (type_alias) "\n"
+                } else {
+                    match &item.array {
+                        Some(_) => {
+                            if item.kind == Type::CString {
+                                "\t" (item.name) "\t" (GoType(&item.kind)) "\n"
+                            } else {
+                                "\t" (item.name) "\t" "[]" (GoType(&item.kind)) "\n"
+                            }
                         }
-                    }
-                    None => { "\t" (item.name) "\t" (GoType(&item.kind)) "\n" }
-                } // TODO do something better?
+                        None => { "\t" (item.name) "\t" (GoType(&item.kind)) "\n" }
+                    } // TODO do something better?
+                }
             }
             "}" "\n\n"
         )?;
