@@ -1,7 +1,5 @@
 #+TITLE: pstruct todos
 
-* cargo workspace to share lock/target dir
-
 * string with a better syntax? need to specify the length type, consider specifying a fixed size too? (i dont think it is possible right now)
 
 * use anyhow but still pretty print pest errors
@@ -45,9 +43,6 @@ doesn't look too bad, i should do it
 could also just use test-generator lol
 making a proc macro using glob seems fun tho
 
-* Make code a bit more language-agnostic
-** separated library and binary stuff so the library can eventually be used for macros as well
-
 * Dummy values (not stored in struct)
 
 * Magic values -> kinda like dummy values, but have a constraint associated
@@ -56,6 +51,10 @@ making a proc macro using glob seems fun tho
 
 * Make string invalid, []string and [x]string only for cstring consistency
 existing string would become []string
+should just remove string altogether likely, it's weird right now
+
+* Handle `array_size_type` with cstrings
+requires go runtime change
 
 * Error message when defining reserved identifiers
 ** Need to figure out what those are first
