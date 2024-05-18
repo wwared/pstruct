@@ -824,4 +824,20 @@ struct player
     let res = parse_file(test);
     dbg!(&res);
     assert!(res.is_ok(), "array_size_type per item and per file");
+
+    let test = "
+options {
+    prefix i32
+}
+struct player
+{
+    h_p []u8  array_size_type:u8
+    s_p []u16
+    l_p_ []u64 prefix:u64
+}";
+    let res = StructParser::parse(Rule::file, test);
+    assert!(res.is_ok(), "item_type with underscores");
+    let res = parse_file(test);
+    dbg!(&res);
+    assert!(res.is_ok(), "item_type with underscores");
 }

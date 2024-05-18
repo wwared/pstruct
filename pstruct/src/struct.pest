@@ -4,7 +4,7 @@ extern_definition = ${ "extern" ~ WHITESPACE+ ~ item_identifier ~ LINE }
 definition  = { struct_name ~ LINE* ~ "{" ~ LINE+ ~ (struct_item ~ LINE+)* ~ LINE* ~ "}" }
 struct_name = ${ "struct" ~ WHITESPACE+ ~ item_identifier }
 
-item_identifier = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+item_identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_") * }
 
 array           = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* | item_identifier }
 array_brackets  = ${ "[" ~ array? ~ "]" }
