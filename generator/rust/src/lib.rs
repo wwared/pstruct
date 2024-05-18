@@ -13,7 +13,7 @@ pub fn render_file(file: &File) -> String {
     let declarations = file.structs.iter().map(struct_declaration);
 
     let tokens = quote!(
-        #[allow(unused_assignments, unused_variables)]
+        #[allow(unused_assignments, unused_variables, unused_parens, clippy::derivable_impls, clippy::needless_range_loop, clippy::needless_parens_on_range_literals, clippy::unnecessary_cast, clippy::identity_op)]
         pub mod #scope {
             use pstruct_rs::*;
             use std::ffi::CString;
