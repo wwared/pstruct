@@ -74,6 +74,14 @@ fn decode_item(item: &Item) -> TokenStream {
     } else {
         type_size(&item.kind, &var)
     };
+    let arr_sz_decode_fn = match item.byte_order {
+        Endian::Little => {
+            quote!(decode_le)
+        }
+        Endian::Big => {
+            quote!(decode_be)
+        }
+    };
     let mut decode_fn = match item.byte_order {
         Endian::Little => {
             quote!(decode_le)
@@ -89,7 +97,7 @@ fn decode_item(item: &Item) -> TokenStream {
         Type::String => {
             quote!(
                 let mut tmp_len: u16 = 0;
-                tmp_len.#decode_fn(&data[..2])?;
+                tmp_len.#arr_sz_decode_fn(&data[..2])?;
                 data = &data[2..];
                 let mut tmp_buf: Vec<u8> = vec![0; tmp_len as usize];
                 tmp_buf.#decode_fn(&data[..(tmp_len as usize)])?;
@@ -169,7 +177,7 @@ fn decode_item(item: &Item) -> TokenStream {
                 // TODO: use .push and stuff instead of this gross stuff
                 quote!(
                     let mut tmp_len: #arr_ty = 0;
-                    tmp_len.#decode_fn(&data[..#arr_sz])?;
+                    tmp_len.#arr_sz_decode_fn(&data[..#arr_sz])?;
                     data = &data[#arr_sz..];
                     self.#var_id = Vec::with_capacity(tmp_len as usize);
                     for idx in 0..(tmp_len as usize) {
@@ -234,6 +242,14 @@ fn encode_item(item: &Item) -> TokenStream {
     } else {
         type_size(&item.kind, &var)
     };
+    let arr_sz_encode_fn = match item.byte_order {
+        Endian::Little => {
+            quote!(encode_le)
+        }
+        Endian::Big => {
+            quote!(encode_be)
+        }
+    };
     let mut encode_fn = match item.byte_order {
         Endian::Little => {
             quote!(encode_le)
@@ -249,7 +265,7 @@ fn encode_item(item: &Item) -> TokenStream {
         Type::String => {
             // TODO implement for &[T] somehow so this doesn't need a clone?
             quote!(
-                (self.#var.len() as u16).#encode_fn(&mut buf[..2])?;
+                (self.#var.len() as u16).#arr_sz_encode_fn(&mut buf[..2])?;
                 buf = &mut buf[2..];
                 self.#var.as_bytes().to_vec().#encode_fn(&mut buf[..self.#var.len()])?;
                 buf = &mut buf[self.#var.len()..];
@@ -311,7 +327,7 @@ fn encode_item(item: &Item) -> TokenStream {
                 let arr_ty = quote_type(ty);
                 let arr_sz = type_size(ty, &quote!(compile_error!("SHOULD NEVER HAPPEN")));
                 quote!(
-                    (self.#var_id.len() as #arr_ty).#encode_fn(&mut buf[..#arr_sz])?;
+                    (self.#var_id.len() as #arr_ty).#arr_sz_encode_fn(&mut buf[..#arr_sz])?;
                     buf = &mut buf[#arr_sz..];
                 )
             }
