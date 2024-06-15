@@ -1,10 +1,25 @@
+#![no_std]
+extern crate alloc;
+
+use core::error::Error;
+use core::fmt::Display;
+use alloc::vec::Vec;
+
 #[derive(Debug)]
 pub enum PError {
     BufTooSmall,
     NotEnoughData,
 }
 
-pub type Result<T> = std::result::Result<T, PError>;
+impl Error for PError {}
+
+impl Display for PError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+pub type Result<T> = core::result::Result<T, PError>;
 
 pub trait Pstruct: Sized {
     // these all get generated with the macro alongside the struct def
@@ -27,28 +42,28 @@ pub trait Primitive: Sized {
 // here we never encode/decode the length
 impl<T: Primitive + Default + Copy, const N: usize> Primitive for [T; N] {
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_be(&data[idx * size..])?;
         }
@@ -61,28 +76,28 @@ impl<T: Primitive + Default + Copy> Primitive for Vec<T> {
     // calling these functions!
     // we can guarantee that in our generated code, but this makes this weird to use
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_be(&data[idx * size..])?;
         }
@@ -95,28 +110,28 @@ impl<T: Primitive + Default + Copy> Primitive for &mut [T] {
     // calling these functions!
     // we can guarantee that in our generated code, but this makes this weird to use
     fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, elem) in self.iter().enumerate() {
             elem.encode_le(&mut buf[idx * size..])?;
         }
         Ok(())
     }
     fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_le(&data[idx * size..])?;
         }
         Ok(())
     }
     fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-        let size = std::mem::size_of::<T>();
+        let size = core::mem::size_of::<T>();
         for (idx, item) in self.iter_mut().enumerate() {
             item.decode_be(&data[idx * size..])?;
         }
@@ -130,7 +145,7 @@ macro_rules! basic_primitive {
             // maybe we want to pass exactly-sized slices to these functions
             // and use == instead of < in the ifs
             fn encode_le(&self, buf: &mut [u8]) -> Result<()> {
-                let size = std::mem::size_of::<$ty>();
+                let size = core::mem::size_of::<$ty>();
                 if buf.len() < size {
                     return Err(PError::BufTooSmall);
                 }
@@ -138,7 +153,7 @@ macro_rules! basic_primitive {
                 Ok(())
             }
             fn encode_be(&self, buf: &mut [u8]) -> Result<()> {
-                let size = std::mem::size_of::<$ty>();
+                let size = core::mem::size_of::<$ty>();
                 if buf.len() < size {
                     return Err(PError::BufTooSmall);
                 }
@@ -146,8 +161,8 @@ macro_rules! basic_primitive {
                 Ok(())
             }
             fn decode_le(&mut self, data: &[u8]) -> Result<()> {
-                use std::convert::TryInto;
-                let size = std::mem::size_of::<$ty>();
+                use core::convert::TryInto;
+                let size = core::mem::size_of::<$ty>();
                 if data.len() < size {
                     return Err(PError::NotEnoughData);
                 }
@@ -155,8 +170,8 @@ macro_rules! basic_primitive {
                 Ok(())
             }
             fn decode_be(&mut self, data: &[u8]) -> Result<()> {
-                use std::convert::TryInto;
-                let size = std::mem::size_of::<$ty>();
+                use core::convert::TryInto;
+                let size = core::mem::size_of::<$ty>();
                 if data.len() < size {
                     return Err(PError::NotEnoughData);
                 }
